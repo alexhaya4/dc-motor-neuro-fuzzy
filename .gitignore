@@ -1,0 +1,33 @@
+# Python virtual environment
+venv/
+
+# Byte-compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+*.swp
+*.swo
+.DS_Store
+
+# Generated files
+*.png
+*.keras
+*.h5
+
+# Except icon
+!icon.png
+
+# Data files
+*.csv
+training_data.json
