@@ -1,0 +1,31 @@
+# Core Dependencies
+numpy==1.24.3
+scipy==1.10.1
+scikit-fuzzy==0.4.2
+
+# Machine Learning
+tensorflow==2.15.0
+keras==2.15.0
+
+# Visualization
+matplotlib==3.7.2
+
+# GUI Framework
+PyQt5==5.15.9
+PyQt5-Qt5==5.15.2
+PyQt5-sip==12.12.2
+
+# Hardware Interface (Raspberry Pi only)
+RPi.GPIO==0.7.1
+
+# Development Dependencies
+pytest==7.4.0
+pytest-cov==4.1.0
+pytest-mock==3.11.1
+black==23.7.0
+flake8==6.1.0
+mypy==1.4.1
+
+# Utilities
+python-dotenv==1.0.0
+jsonschema==4.19.0

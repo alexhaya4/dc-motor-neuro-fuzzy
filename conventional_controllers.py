@@ -1,102 +1,184 @@
+"""
+Conventional PID Controllers with proper validation and type hints
+"""
+
 import time
+from typing import Optional
 
-class PIController:
-    def __init__(self, kp=1.0, ki=0.5):
-        self.kp = kp  # Proportional gain
-        self.ki = ki  # Integral gain
-        
-        # For controller state
-        self.integral = 0
-        self.prev_error = 0
+from base_controller import BaseController
+from logger_utils import get_logger
+from config import get_config
+
+
+class PIController(BaseController):
+    """
+    Proportional-Integral (PI) Controller with anti-windup
+
+    Args:
+        kp: Proportional gain
+        ki: Integral gain
+        integral_limit: Anti-windup limit for integral term
+    """
+
+    def __init__(
+        self,
+        kp: Optional[float] = None,
+        ki: Optional[float] = None,
+        integral_limit: Optional[float] = None
+    ):
+        super().__init__()
+
+        # Load from config if not provided
+        config = get_config()
+        self.kp = kp if kp is not None else config.controller.pi_kp
+        self.ki = ki if ki is not None else config.controller.pi_ki
+        self.integral_limit = integral_limit if integral_limit is not None else config.controller.pi_integral_limit
+
+        # Controller state
+        self.integral = 0.0
         self.prev_time = time.time()
-        
-        # Limits
-        self.integral_limit = 100  # Anti-windup limit
-    
-    def compute_output(self, target_speed, current_speed):
+
+        self.logger.info(f"PI Controller initialized: Kp={self.kp}, Ki={self.ki}")
+
+    def _compute_control_output(self, target_speed: float, current_speed: float) -> float:
+        """
+        Compute PI control output
+
+        Args:
+            target_speed: Validated target speed (0-100%)
+            current_speed: Validated current speed (0-100%)
+
+        Returns:
+            PWM duty cycle (0-100%)
+        """
         # Time delta
         current_time = time.time()
         dt = current_time - self.prev_time
         self.prev_time = current_time
-        
+
+        # Avoid computation if dt is too small
+        if dt < 1e-6:
+            dt = 1e-6
+
         # Calculate error
         error = target_speed - current_speed
-        
+
         # Update integral term with anti-windup
         self.integral += error * dt
-        self.integral = max(min(self.integral, self.integral_limit), -self.integral_limit)
-        
-        # Calculate output
+
+        # Apply anti-windup limits
+        if self.integral > self.integral_limit:
+            self.integral = self.integral_limit
+            self.logger.debug(f"Integral windup limited to {self.integral_limit}")
+        elif self.integral < -self.integral_limit:
+            self.integral = -self.integral_limit
+            self.logger.debug(f"Integral windup limited to -{self.integral_limit}")
+
+        # Calculate output terms
         p_term = self.kp * error
         i_term = self.ki * self.integral
-        
+
         output = p_term + i_term
-        
-        # Limit output to 0-100 range
-        output = max(min(output, 100), 0)
-        
-        # Store error for next iteration
-        self.prev_error = error
-        
+
         return output
-    
-    def reset(self):
-        """Reset controller state"""
-        self.integral = 0
-        self.prev_error = 0
+
+    def reset(self) -> None:
+        """Reset PI controller state"""
+        super().reset()
+        self.integral = 0.0
         self.prev_time = time.time()
 
 
-class PIDController:
-    def __init__(self, kp=1.0, ki=0.5, kd=0.2):
-        self.kp = kp  # Proportional gain
-        self.ki = ki  # Integral gain
-        self.kd = kd  # Derivative gain
-        
-        # For controller state
-        self.integral = 0
-        self.prev_error = 0
+class PIDController(BaseController):
+    """
+    Proportional-Integral-Derivative (PID) Controller with anti-windup and derivative filtering
+
+    Args:
+        kp: Proportional gain
+        ki: Integral gain
+        kd: Derivative gain
+        integral_limit: Anti-windup limit for integral term
+    """
+
+    def __init__(
+        self,
+        kp: Optional[float] = None,
+        ki: Optional[float] = None,
+        kd: Optional[float] = None,
+        integral_limit: Optional[float] = None
+    ):
+        super().__init__()
+
+        # Load from config if not provided
+        config = get_config()
+        self.kp = kp if kp is not None else config.controller.pid_kp
+        self.ki = ki if ki is not None else config.controller.pid_ki
+        self.kd = kd if kd is not None else config.controller.pid_kd
+        self.integral_limit = integral_limit if integral_limit is not None else config.controller.pid_integral_limit
+
+        # Controller state
+        self.integral = 0.0
         self.prev_time = time.time()
-        
-        # Limits
-        self.integral_limit = 100  # Anti-windup limit
-    
-    def compute_output(self, target_speed, current_speed):
+        self.derivative = 0.0
+
+        # Derivative filtering (exponential moving average)
+        self.derivative_filter_alpha = 0.1
+
+        self.logger.info(f"PID Controller initialized: Kp={self.kp}, Ki={self.ki}, Kd={self.kd}")
+
+    def _compute_control_output(self, target_speed: float, current_speed: float) -> float:
+        """
+        Compute PID control output
+
+        Args:
+            target_speed: Validated target speed (0-100%)
+            current_speed: Validated current speed (0-100%)
+
+        Returns:
+            PWM duty cycle (0-100%)
+        """
         # Time delta
         current_time = time.time()
         dt = current_time - self.prev_time
         self.prev_time = current_time
-        
+
+        # Avoid computation if dt is too small
+        if dt < 1e-6:
+            dt = 1e-6
+
         # Calculate error
         error = target_speed - current_speed
-        
+
         # Update integral term with anti-windup
         self.integral += error * dt
-        self.integral = max(min(self.integral, self.integral_limit), -self.integral_limit)
-        
-        # Calculate derivative term
-        if dt > 0:  # Avoid division by zero
-            derivative = (error - self.prev_error) / dt
-        else:
-            derivative = 0
-        
-        # Calculate output
+
+        # Apply anti-windup limits
+        if self.integral > self.integral_limit:
+            self.integral = self.integral_limit
+        elif self.integral < -self.integral_limit:
+            self.integral = -self.integral_limit
+
+        # Calculate derivative term with filtering to reduce noise
+        raw_derivative = (error - self.prev_error) / dt if dt > 0 else 0.0
+
+        # Apply exponential moving average filter
+        self.derivative = (
+            self.derivative_filter_alpha * raw_derivative +
+            (1 - self.derivative_filter_alpha) * self.derivative
+        )
+
+        # Calculate output terms
         p_term = self.kp * error
         i_term = self.ki * self.integral
-        d_term = self.kd * derivative
-        
+        d_term = self.kd * self.derivative
+
         output = p_term + i_term + d_term
-        
-        # Limit output to 0-100 range
-        output = max(min(output, 100), 0)
-        
-        # Store error for next iteration
-        self.prev_error = error
-        
+
         return output
-    
-    def reset(self):
-        """Reset controller state"""
-        self.integral = 0
-        self.prev_error = 0
+
+    def reset(self) -> None:
+        """Reset PID controller state"""
+        super().reset()
+        self.integral = 0.0
+        self.derivative = 0.0
         self.prev_time = time.time()

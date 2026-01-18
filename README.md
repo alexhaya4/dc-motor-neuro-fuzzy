@@ -31,11 +31,80 @@ There are two ways to run the application:
 
 ## Features
 
-- Real-time motor speed control
-- Multiple controller types (PI, PID, ANFIS)
-- Data logging and analysis
-- Neural network training
-- Performance visualization
+### Core Control System
+- **Real-time motor speed control** with hardware integration
+- **4 Controller Types:**
+  - PI Controller (Proportional-Integral)
+  - PID Controller (with derivative filtering and anti-windup)
+  - Fuzzy Logic Controller (Mamdani inference)
+  - ANFIS Controller (Adaptive Neuro-Fuzzy with REAL neural networks)
+
+### Modern GUI (v2.2)
+- **3 Professional Themes** (Modern Light, Modern Dark, Classic)
+- **Smooth Animations** throughout the interface
+- **Thread-Safe Operation** with Queue and Lock synchronization
+- **6 Functional Tabs** (Control, Plot, Tuning, Performance, Settings, Logs)
+
+### Advanced Plotting (NEW in v2.2!) 📊
+- **Multi-Trace Plot Widget:**
+  - 7 configurable traces (Target, Actual, Error, PWM, P term, I term, D term)
+  - Toggle traces on/off with checkboxes
+  - Real-time updates (10 Hz)
+  - 30-second rolling window
+
+- **Export Functionality:**
+  - Save plots as PNG (300 DPI, publication quality)
+  - Export data to CSV (Excel compatible)
+  - Export data to JSON (structured format with metadata)
+  - Export to MATLAB .m files (with plot commands)
+
+- **FFT Analysis:**
+  - Frequency domain analysis
+  - Dominant frequency detection
+  - Stability checking
+  - Oscillation identification
+
+- **Phase Portrait:**
+  - Error vs Error Rate visualization
+  - Convergence analysis
+  - Trajectory plotting
+  - Stability assessment
+
+- **Controller Comparison:**
+  - Side-by-side performance comparison
+  - 4 subplots (Speed, Error, PWM, Metrics)
+  - Record and replay multiple runs
+  - Load/save recordings
+
+### Educational Features (NEW in v2.2!) 📚
+- **8 Comprehensive Topics:**
+  - PI Controller
+  - PID Controller
+  - Fuzzy Logic Controller
+  - ANFIS Controller
+  - Anti-Windup Protection
+  - Derivative Filtering
+  - Performance Metrics
+  - Ziegler-Nichols Tuning
+
+- **Interactive Tutorial:**
+  - 7-step guided walkthrough
+  - Learn-by-doing approach
+  - Beginner-friendly
+  - Step-by-step navigation
+
+- **Educational Panel:**
+  - Quick reference buttons
+  - One-click explanations
+  - Context-aware tooltips
+  - Full explanation dialogs
+
+### Advanced Features
+- **Auto-Tuning:** Relay feedback method (Åström-Hägglund)
+- **Data Collection:** Real optimal control data (no heuristics)
+- **Neural Network Training:** TensorFlow/Keras models
+- **Performance Metrics:** Overshoot, settling time, steady-state error
+- **Professional Logging:** Rotating file logs with multiple levels
 
 ## Troubleshooting
 
