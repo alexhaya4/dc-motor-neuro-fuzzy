@@ -9,9 +9,69 @@ from dataclasses import dataclass, field
 from typing import Optional, Dict, Any
 from pathlib import Path
 from dotenv import load_dotenv
+from constants import VALID_GPIO_PINS
 
 # Load environment variables from .env file if it exists
 load_dotenv()
+
+
+class ConfigurationError(Exception):
+    """Raised when configuration validation fails"""
+    pass
+
+
+def validate_gpio_pin(pin: int, pin_name: str) -> int:
+    """
+    Validate GPIO pin number is within valid BCM range
+
+    Args:
+        pin: GPIO pin number to validate
+        pin_name: Name of the pin for error messages
+
+    Returns:
+        Validated pin number
+
+    Raises:
+        ConfigurationError: If pin is invalid
+    """
+    if pin not in VALID_GPIO_PINS:
+        raise ConfigurationError(
+            f"Invalid GPIO pin for {pin_name}: {pin}. "
+            f"Valid BCM pins are {VALID_GPIO_PINS[0]}-{VALID_GPIO_PINS[-1]}"
+        )
+    return pin
+
+
+def validate_directory_path(path: Path, base_path: Path, path_name: str) -> Path:
+    """
+    Validate directory path is within allowed boundaries (prevent directory traversal)
+
+    Args:
+        path: Path to validate
+        base_path: Base directory that path must be under
+        path_name: Name of the path for error messages
+
+    Returns:
+        Validated absolute path
+
+    Raises:
+        ConfigurationError: If path is outside allowed directory
+    """
+    try:
+        real_path = Path(path).resolve()
+        real_base = base_path.resolve()
+
+        # Check if path is under base_path
+        try:
+            real_path.relative_to(real_base)
+        except ValueError:
+            raise ConfigurationError(
+                f"{path_name} '{path}' is outside allowed directory '{base_path}'"
+            )
+
+        return real_path
+    except Exception as e:
+        raise ConfigurationError(f"Invalid path for {path_name}: {e}")
 
 
 @dataclass
@@ -25,13 +85,19 @@ class GPIOConfig:
 
     @classmethod
     def from_env(cls) -> 'GPIOConfig':
-        """Load GPIO configuration from environment variables"""
+        """Load GPIO configuration from environment variables with validation"""
+        motor_in1 = validate_gpio_pin(int(os.getenv('GPIO_MOTOR_IN1', 17)), 'MOTOR_IN1')
+        motor_in2 = validate_gpio_pin(int(os.getenv('GPIO_MOTOR_IN2', 18)), 'MOTOR_IN2')
+        motor_ena = validate_gpio_pin(int(os.getenv('GPIO_MOTOR_ENA', 12)), 'MOTOR_ENA')
+        ir_sensor = validate_gpio_pin(int(os.getenv('GPIO_IR_SENSOR', 23)), 'IR_SENSOR')
+        ir_sensor_2 = validate_gpio_pin(int(os.getenv('GPIO_IR_SENSOR_2', 24)), 'IR_SENSOR_2')
+
         return cls(
-            motor_in1=int(os.getenv('GPIO_MOTOR_IN1', 17)),
-            motor_in2=int(os.getenv('GPIO_MOTOR_IN2', 18)),
-            motor_ena=int(os.getenv('GPIO_MOTOR_ENA', 12)),
-            ir_sensor_pin=int(os.getenv('GPIO_IR_SENSOR', 23)),
-            ir_sensor_pin_2=int(os.getenv('GPIO_IR_SENSOR_2', 24))
+            motor_in1=motor_in1,
+            motor_in2=motor_in2,
+            motor_ena=motor_ena,
+            ir_sensor_pin=ir_sensor,
+            ir_sensor_pin_2=ir_sensor_2
         )
 
 
@@ -107,13 +173,27 @@ class PathConfig:
 
     @classmethod
     def from_env(cls) -> 'PathConfig':
-        """Load path configuration from environment variables"""
-        base = Path(os.getenv('APP_BASE_DIR', Path(__file__).parent))
+        """Load path configuration from environment variables with validation"""
+        default_base = Path(__file__).parent
+        base_env = os.getenv('APP_BASE_DIR', str(default_base))
+
+        # Validate base directory
+        base = validate_directory_path(Path(base_env), default_base.parent, 'APP_BASE_DIR')
+
+        # Validate subdirectories
+        models_env = os.getenv('APP_MODELS_DIR', str(base / "models"))
+        logs_env = os.getenv('APP_LOGS_DIR', str(base / "logs"))
+        data_env = os.getenv('APP_DATA_DIR', str(base / "data"))
+
+        models = validate_directory_path(Path(models_env), base.parent, 'APP_MODELS_DIR')
+        logs = validate_directory_path(Path(logs_env), base.parent, 'APP_LOGS_DIR')
+        data = validate_directory_path(Path(data_env), base.parent, 'APP_DATA_DIR')
+
         return cls(
             base_dir=base,
-            models_dir=Path(os.getenv('APP_MODELS_DIR', base / "models")),
-            logs_dir=Path(os.getenv('APP_LOGS_DIR', base / "logs")),
-            data_dir=Path(os.getenv('APP_DATA_DIR', base / "data"))
+            models_dir=models,
+            logs_dir=logs,
+            data_dir=data
         )
 
 

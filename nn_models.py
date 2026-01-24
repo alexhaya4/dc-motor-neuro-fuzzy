@@ -2,7 +2,88 @@ import tensorflow as tf
 import numpy as np
 import os
 import json
+import hashlib
 import matplotlib.pyplot as plt
+from pathlib import Path
+from jsonschema import validate, ValidationError as JsonValidationError
+from constants import (
+    NN_ERROR_SCALE_MIN, NN_ERROR_SCALE_MAX,
+    NN_DELTA_ERROR_SCALE_MIN, NN_DELTA_ERROR_SCALE_MAX,
+    NN_OUTPUT_SCALE_MIN, NN_OUTPUT_SCALE_MAX,
+    MODEL_CHECKSUM_ALGORITHM, MAX_JSON_FILE_SIZE_BYTES
+)
+
+
+# JSON Schema for training data validation
+TRAINING_DATA_SCHEMA = {
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "target_speed": {"type": "number", "minimum": 0, "maximum": 100},
+            "actual_speed": {"type": "number", "minimum": 0, "maximum": 100},
+            "error_scale": {"type": "number", "minimum": 0.1, "maximum": 5.0},
+            "delta_error_scale": {"type": "number", "minimum": 0.1, "maximum": 5.0},
+            "output_scale": {"type": "number", "minimum": 0.1, "maximum": 5.0}
+        },
+        "required": ["target_speed", "actual_speed", "error_scale", "delta_error_scale", "output_scale"],
+        "additionalProperties": False
+    },
+    "minItems": 1,
+    "maxItems": 100000
+}
+
+
+def compute_file_checksum(filepath: str, algorithm: str = MODEL_CHECKSUM_ALGORITHM) -> str:
+    """
+    Compute cryptographic checksum of a file
+
+    Args:
+        filepath: Path to file
+        algorithm: Hash algorithm (sha256, sha512, etc.)
+
+    Returns:
+        Hexadecimal checksum string
+    """
+    hash_obj = hashlib.new(algorithm)
+    with open(filepath, 'rb') as f:
+        # Read file in chunks to handle large files
+        for chunk in iter(lambda: f.read(8192), b''):
+            hash_obj.update(chunk)
+    return hash_obj.hexdigest()
+
+
+def verify_file_checksum(filepath: str, expected_checksum: str,
+                         algorithm: str = MODEL_CHECKSUM_ALGORITHM) -> bool:
+    """
+    Verify file checksum matches expected value
+
+    Args:
+        filepath: Path to file
+        expected_checksum: Expected checksum value
+        algorithm: Hash algorithm
+
+    Returns:
+        True if checksum matches, False otherwise
+    """
+    actual_checksum = compute_file_checksum(filepath, algorithm)
+    return actual_checksum == expected_checksum
+
+
+def save_checksum(filepath: str, checksum: str) -> None:
+    """Save checksum to .checksum file"""
+    checksum_file = f"{filepath}.{MODEL_CHECKSUM_ALGORITHM}"
+    with open(checksum_file, 'w') as f:
+        f.write(checksum)
+
+
+def load_checksum(filepath: str) -> str:
+    """Load checksum from .checksum file"""
+    checksum_file = f"{filepath}.{MODEL_CHECKSUM_ALGORITHM}"
+    if os.path.exists(checksum_file):
+        with open(checksum_file, 'r') as f:
+            return f.read().strip()
+    return None
 
 class ScalingFactorNetwork:
     """Neural network model for adaptive scaling factors."""
@@ -107,31 +188,66 @@ class ScalingFactorNetwork:
         # For output_scale: range 0.5 to 1.5
         
         if self.name == "error_scale":
-            return 0.5 + (predictions * 1.5)  # 0.5 to 2.0
+            range_span = NN_ERROR_SCALE_MAX - NN_ERROR_SCALE_MIN
+            return NN_ERROR_SCALE_MIN + (predictions * range_span)
         elif self.name == "delta_error_scale":
-            return 0.5 + (predictions * 1.5)  # 0.5 to 2.0
+            range_span = NN_DELTA_ERROR_SCALE_MAX - NN_DELTA_ERROR_SCALE_MIN
+            return NN_DELTA_ERROR_SCALE_MIN + (predictions * range_span)
         else:  # output_scale
-            return 0.5 + (predictions * 1.0)  # 0.5 to 1.5
+            range_span = NN_OUTPUT_SCALE_MAX - NN_OUTPUT_SCALE_MIN
+            return NN_OUTPUT_SCALE_MIN + (predictions * range_span)
     
     def save(self, directory="models"):
-        """Save the model to disk."""
+        """Save the model to disk with integrity checksum."""
         if not os.path.exists(directory):
             os.makedirs(directory)
-        
+
         filepath = os.path.join(directory, f"{self.name}.h5")
         self.model.save(filepath)
+
+        # Compute and save checksum for integrity verification
+        checksum = compute_file_checksum(filepath)
+        save_checksum(filepath, checksum)
+
         print(f"Model saved to {filepath}")
+        print(f"Checksum ({MODEL_CHECKSUM_ALGORITHM}): {checksum}")
     
-    def load(self, directory="models"):
-        """Load the model from disk."""
+    def load(self, directory="models", verify_integrity=True):
+        """
+        Load the model from disk with optional integrity verification.
+
+        Args:
+            directory: Directory containing model file
+            verify_integrity: Whether to verify file checksum (recommended)
+
+        Returns:
+            True if loaded successfully, False otherwise
+        """
         filepath = os.path.join(directory, f"{self.name}.h5")
-        
-        if os.path.exists(filepath):
+
+        if not os.path.exists(filepath):
+            print(f"Model file {filepath} not found.")
+            return False
+
+        # Verify integrity if checksum file exists
+        if verify_integrity:
+            expected_checksum = load_checksum(filepath)
+            if expected_checksum:
+                print(f"Verifying model integrity...")
+                if not verify_file_checksum(filepath, expected_checksum):
+                    print(f"WARNING: Model file {filepath} failed integrity check!")
+                    print(f"File may have been corrupted or tampered with.")
+                    return False
+                print(f"Integrity verification passed.")
+            else:
+                print(f"No checksum file found for {filepath}, skipping verification.")
+
+        try:
             self.model = tf.keras.models.load_model(filepath)
             print(f"Model loaded from {filepath}")
             return True
-        else:
-            print(f"Model file {filepath} not found.")
+        except (OSError, IOError, ValueError) as e:
+            print(f"Error loading model from {filepath}: {e}")
             return False
     
     def plot_history(self):
@@ -181,16 +297,45 @@ class NeuralNetworkTrainer:
         self.output_network = ScalingFactorNetwork(name="output_scale")
         
     def load_training_data(self, filename="training_data.json"):
-        """Load training data from a file."""
+        """
+        Load training data from a file with validation.
+
+        Args:
+            filename: Path to JSON training data file
+
+        Returns:
+            Validated training data or None if validation fails
+        """
         if not os.path.exists(filename):
             print(f"Training data file {filename} not found.")
             return None
-        
-        with open(filename, 'r') as f:
-            data = json.load(f)
-        
-        print(f"Loaded {len(data)} training samples.")
-        return data
+
+        # Check file size to prevent memory exhaustion
+        file_size = os.path.getsize(filename)
+        if file_size > MAX_JSON_FILE_SIZE_BYTES:
+            print(f"Training data file {filename} is too large "
+                  f"({file_size} bytes > {MAX_JSON_FILE_SIZE_BYTES} bytes).")
+            return None
+
+        try:
+            with open(filename, 'r') as f:
+                data = json.load(f)
+
+            # Validate JSON structure
+            validate(instance=data, schema=TRAINING_DATA_SCHEMA)
+
+            print(f"Loaded and validated {len(data)} training samples.")
+            return data
+
+        except json.JSONDecodeError as e:
+            print(f"Invalid JSON in {filename}: {e}")
+            return None
+        except JsonValidationError as e:
+            print(f"Training data validation failed: {e.message}")
+            return None
+        except (OSError, IOError) as e:
+            print(f"Error reading {filename}: {e}")
+            return None
     
     def prepare_data(self, data):
         """Prepare the data for training the neural networks."""
@@ -201,9 +346,9 @@ class NeuralNetworkTrainer:
         y_output = np.array([d['output_scale'] for d in data])
         
         # Normalize targets to [0, 1] range for sigmoid output
-        y_error = (y_error - 0.5) / 1.5  # Map 0.5-2.0 to 0-1
-        y_delta = (y_delta - 0.5) / 1.5  # Map 0.5-2.0 to 0-1
-        y_output = (y_output - 0.5) / 1.0  # Map 0.5-1.5 to 0-1
+        y_error = (y_error - NN_ERROR_SCALE_MIN) / (NN_ERROR_SCALE_MAX - NN_ERROR_SCALE_MIN)
+        y_delta = (y_delta - NN_DELTA_ERROR_SCALE_MIN) / (NN_DELTA_ERROR_SCALE_MAX - NN_DELTA_ERROR_SCALE_MIN)
+        y_output = (y_output - NN_OUTPUT_SCALE_MIN) / (NN_OUTPUT_SCALE_MAX - NN_OUTPUT_SCALE_MIN)
         
         return X, y_error, y_delta, y_output
     

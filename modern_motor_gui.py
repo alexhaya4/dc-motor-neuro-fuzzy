@@ -5,6 +5,7 @@ Complete implementation with all improvements integrated
 
 import sys
 import time
+import random  # Import at module level, not in hot loop
 import numpy as np
 from collections import deque
 from queue import Queue, Empty
@@ -33,6 +34,27 @@ from animated_widgets import (AnimatedCard, CircularGauge, StatusIndicator,
 from conventional_controllers import PIController, PIDController
 from fuzzy_controller import FuzzyController
 from anfis_controller import ANFISController
+from constants import (
+    SETTLING_TIME_TOLERANCE_PERCENT,
+    STEADY_STATE_SAMPLES,
+    STEADY_STATE_START_TIME_SEC,
+    SPEED_SENSOR_SMOOTHING_SAMPLES,
+    SPEED_MEASUREMENT_DURATION_SEC,
+    SENSOR_POLL_INTERVAL_SEC,
+    CONTROL_LOOP_INTERVAL_SEC,
+    PLOT_MAX_POINTS,
+    MAX_LOG_FILE_READ_BYTES,
+    OVERSHOOT_PENALTY_MULTIPLIER,
+    OVERSHOOT_MAX_PENALTY,
+    SETTLING_TIME_PENALTY_MULTIPLIER,
+    SETTLING_TIME_MAX_PENALTY,
+    STEADY_STATE_ERROR_PENALTY_MULTIPLIER,
+    STEADY_STATE_ERROR_MAX_PENALTY,
+    MAX_PERFORMANCE_SCORE,
+    WATCHDOG_TIMEOUT_SEC,
+    WATCHDOG_CHECK_INTERVAL_SEC,
+    SPEED_SENSOR_SLEEP_MICROSEC
+)
 
 # Conditional GPIO import
 if is_raspberry_pi():
@@ -88,15 +110,16 @@ class PerformanceMetrics:
         self.max_value = max(self.max_value, actual)
         self.min_value = min(self.min_value, actual)
 
-        # Check if reached target (within 5%)
+        # Check if reached target (within tolerance)
         if self.target_reached_time is None:
-            if abs(actual - target) <= target * 0.05:
+            tolerance = target * (SETTLING_TIME_TOLERANCE_PERCENT / 100.0)
+            if abs(actual - target) <= tolerance:
                 self.target_reached_time = time.time()
 
-        # Collect steady-state samples (after 5 seconds)
-        if time.time() - self.start_time > 5:
+        # Collect steady-state samples (after defined time)
+        if time.time() - self.start_time > STEADY_STATE_START_TIME_SEC:
             self.steady_state_samples.append(actual - target)
-            if len(self.steady_state_samples) > 50:
+            if len(self.steady_state_samples) > STEADY_STATE_SAMPLES:
                 self.steady_state_samples.pop(0)
 
     def calculate(self, target: float) -> Dict[str, float]:
@@ -107,11 +130,11 @@ class PerformanceMetrics:
 
         ss_error = np.mean(np.abs(self.steady_state_samples)) if self.steady_state_samples else 0
 
-        # Calculate score (0-100)
-        score = 100
-        score -= min(overshoot * 2, 30)  # Penalty for overshoot
-        score -= min(settling_time * 5, 30)  # Penalty for slow settling
-        score -= min(ss_error * 10, 30)  # Penalty for steady-state error
+        # Calculate score using constants
+        score = MAX_PERFORMANCE_SCORE
+        score -= min(overshoot * OVERSHOOT_PENALTY_MULTIPLIER, OVERSHOOT_MAX_PENALTY)
+        score -= min(settling_time * SETTLING_TIME_PENALTY_MULTIPLIER, SETTLING_TIME_MAX_PENALTY)
+        score -= min(ss_error * STEADY_STATE_ERROR_PENALTY_MULTIPLIER, STEADY_STATE_ERROR_MAX_PENALTY)
         score = max(0, score)
 
         return {
@@ -134,7 +157,7 @@ class ThreadSafeSpeedSensor(QThread):
         self.lock = Lock()
 
         # Smoothing buffer
-        self.rpm_history = deque(maxlen=5)
+        self.rpm_history = deque(maxlen=SPEED_SENSOR_SMOOTHING_SAMPLES)
 
         logger.info("Speed sensor thread initialized")
 
@@ -149,17 +172,16 @@ class ThreadSafeSpeedSensor(QThread):
                     smoothed_rpm = sum(self.rpm_history) / len(self.rpm_history)
 
                 self.speed_updated.emit(smoothed_rpm)
-                time.sleep(0.1)
+                time.sleep(SENSOR_POLL_INTERVAL_SEC)
 
-            except Exception as e:
+            except (ValueError, TypeError, IOError) as e:
                 logger.error(f"Speed sensor error: {e}")
                 time.sleep(0.5)
 
-    def measure_speed(self, duration: float = 0.5) -> float:
+    def measure_speed(self, duration: float = SPEED_MEASUREMENT_DURATION_SEC) -> float:
         """Measure speed by counting IR sensor pulses"""
         if not is_raspberry_pi():
-            # Simulate speed for development
-            import random
+            # Simulate speed for development (random imported at module level)
             return random.uniform(40, 60)
 
         pulse_count = 0
@@ -172,7 +194,7 @@ class ThreadSafeSpeedSensor(QThread):
             if current_state == 0 and last_state == 1:
                 pulse_count += 1
             last_state = current_state
-            time.sleep(0.0001)
+            time.sleep(SPEED_SENSOR_SLEEP_MICROSEC)
 
         # Calculate RPM
         pulses_per_rev = self.config.motor.pulses_per_revolution
@@ -191,15 +213,16 @@ class ThreadSafeSpeedSensor(QThread):
 
 
 class ThreadSafeController(QThread):
-    """Thread-safe controller with Queue-based communication"""
+    """Thread-safe controller with Queue-based communication and watchdog"""
 
     pwm_updated = pyqtSignal(float)
     metrics_updated = pyqtSignal(dict)
 
-    def __init__(self, controller, config):
+    def __init__(self, controller, config, motor_pwm=None):
         super().__init__()
         self.controller = controller
         self.config = config
+        self.motor_pwm = motor_pwm  # Store PWM instance instead of global
         self.running = True
 
         # Thread-safe communication
@@ -214,10 +237,14 @@ class ThreadSafeController(QThread):
         # Performance tracking
         self.metrics = PerformanceMetrics()
 
+        # Watchdog timer for safety
+        self.last_update_time = time.time()
+        self.watchdog_timeout = WATCHDOG_TIMEOUT_SEC
+
         logger.info(f"Controller thread initialized: {controller.__class__.__name__}")
 
     def run(self):
-        """Main control loop"""
+        """Main control loop with watchdog"""
         while self.running:
             try:
                 # Get commands from queue (non-blocking)
@@ -226,6 +253,15 @@ class ThreadSafeController(QThread):
                     self._process_command(cmd)
                 except Empty:
                     pass
+
+                # Check watchdog timer
+                if self.motor_enabled:
+                    elapsed = time.time() - self.last_update_time
+                    if elapsed > self.watchdog_timeout:
+                        logger.warning(f"Watchdog timeout! No update in {elapsed:.2f}s. Stopping motor.")
+                        self.motor_enabled = False
+                        if self.motor_pwm and is_raspberry_pi():
+                            self.motor_pwm.ChangeDutyCycle(0)
 
                 # Compute control output
                 if self.motor_enabled:
@@ -237,8 +273,8 @@ class ThreadSafeController(QThread):
                     pwm = self.controller.compute_output(target, current)
 
                     # Apply to motor
-                    if is_raspberry_pi():
-                        motor_pwm.ChangeDutyCycle(pwm)
+                    if self.motor_pwm and is_raspberry_pi():
+                        self.motor_pwm.ChangeDutyCycle(pwm)
 
                     # Update metrics
                     self.metrics.update(target, current)
@@ -246,9 +282,12 @@ class ThreadSafeController(QThread):
                     # Emit signals
                     self.pwm_updated.emit(pwm)
 
-                time.sleep(0.01)  # 100Hz control loop
+                    # Reset watchdog
+                    self.last_update_time = time.time()
 
-            except Exception as e:
+                time.sleep(CONTROL_LOOP_INTERVAL_SEC)
+
+            except (ValueError, TypeError, RuntimeError) as e:
                 logger.error(f"Controller error: {e}")
                 time.sleep(0.1)
 
@@ -272,8 +311,8 @@ class ThreadSafeController(QThread):
 
         elif cmd_type == 'disable_motor':
             self.motor_enabled = False
-            if is_raspberry_pi():
-                motor_pwm.ChangeDutyCycle(0)
+            if self.motor_pwm and is_raspberry_pi():
+                self.motor_pwm.ChangeDutyCycle(0)
             logger.info("Motor disabled")
 
         elif cmd_type == 'reset':
@@ -325,11 +364,16 @@ class RealTimePlotWidget(FigureCanvas):
         super().__init__(self.fig)
         self.setParent(parent)
 
-        # Data buffers (30 seconds at 10Hz = 300 points)
-        self.time_data = deque(maxlen=300)
-        self.target_data = deque(maxlen=300)
-        self.actual_data = deque(maxlen=300)
-        self.error_data = deque(maxlen=300)
+        # Data buffers (use constant for max points)
+        self.time_data = deque(maxlen=PLOT_MAX_POINTS)
+        self.target_data = deque(maxlen=PLOT_MAX_POINTS)
+        self.actual_data = deque(maxlen=PLOT_MAX_POINTS)
+        self.error_data = deque(maxlen=PLOT_MAX_POINTS)
+
+        # For blitting optimization
+        self.line_target = None
+        self.line_actual = None
+        self.background = None
 
         self.start_time = time.time()
 
@@ -345,7 +389,7 @@ class RealTimePlotWidget(FigureCanvas):
         self.ax.set_ylim(0, 110)
 
     def update_data(self, target: float, actual: float):
-        """Update plot with new data"""
+        """Update plot with new data using optimized blitting"""
         current_time = time.time() - self.start_time
 
         self.time_data.append(current_time)
@@ -353,23 +397,37 @@ class RealTimePlotWidget(FigureCanvas):
         self.actual_data.append(actual)
         self.error_data.append(target - actual)
 
-        # Redraw
-        self.ax.clear()
-        self.setup_plot()
-
         if len(self.time_data) > 1:
-            self.ax.plot(self.time_data, self.target_data, 'b--',
-                        linewidth=2, label='Target', alpha=0.8)
-            self.ax.plot(self.time_data, self.actual_data, 'g-',
-                        linewidth=2, label='Actual')
+            # Use blitting for better performance (only update lines, not entire figure)
+            if self.line_target is None or self.line_actual is None:
+                # Initial setup
+                self.ax.clear()
+                self.setup_plot()
 
-            # Fill error area
-            self.ax.fill_between(self.time_data, self.target_data, self.actual_data,
-                                alpha=0.2, color='red')
+                self.line_target, = self.ax.plot(self.time_data, self.target_data, 'b--',
+                                                  linewidth=2, label='Target', alpha=0.8, animated=True)
+                self.line_actual, = self.ax.plot(self.time_data, self.actual_data, 'g-',
+                                                  linewidth=2, label='Actual', animated=True)
 
-            self.ax.legend(loc='upper right', fontsize=9)
+                self.ax.legend(loc='upper right', fontsize=9)
+                self.draw()
+                self.background = self.copy_from_bbox(self.ax.bbox)
+            else:
+                # Fast update using blitting
+                self.restore_region(self.background)
 
-        self.draw()
+                # Update line data
+                self.line_target.set_data(list(self.time_data), list(self.target_data))
+                self.line_actual.set_data(list(self.time_data), list(self.actual_data))
+
+                # Redraw only the lines
+                self.ax.draw_artist(self.line_target)
+                self.ax.draw_artist(self.line_actual)
+
+                self.blit(self.ax.bbox)
+        else:
+            # Not enough data yet
+            self.draw()
 
     def clear_data(self):
         """Clear all data"""
@@ -378,6 +436,12 @@ class RealTimePlotWidget(FigureCanvas):
         self.actual_data.clear()
         self.error_data.clear()
         self.start_time = time.time()
+
+        # Reset blitting cache
+        self.line_target = None
+        self.line_actual = None
+        self.background = None
+
         self.ax.clear()
         self.setup_plot()
         self.draw()
@@ -395,6 +459,9 @@ class ModernMotorControlGUI(QMainWindow):
         logger.info("=" * 60)
         logger.info("DC Motor Control System v2.0 - Starting")
         logger.info("=" * 60)
+
+        # Motor PWM instance (not global)
+        self.motor_pwm = None
 
         # Initialize hardware (if on Raspberry Pi)
         self.init_hardware()
@@ -447,10 +514,9 @@ class ModernMotorControlGUI(QMainWindow):
         GPIO.setup(self.config.gpio.motor_ena, GPIO.OUT)
         GPIO.setup(self.config.gpio.ir_sensor_pin, GPIO.IN)
 
-        # Create PWM
-        global motor_pwm
-        motor_pwm = GPIO.PWM(self.config.gpio.motor_ena, self.config.motor.pwm_frequency)
-        motor_pwm.start(0)
+        # Create PWM (instance variable, not global)
+        self.motor_pwm = GPIO.PWM(self.config.gpio.motor_ena, self.config.motor.pwm_frequency)
+        self.motor_pwm.start(0)
 
         # Set direction (forward)
         GPIO.output(self.config.gpio.motor_in1, GPIO.HIGH)
@@ -832,8 +898,12 @@ class ModernMotorControlGUI(QMainWindow):
         self.speed_sensor.speed_updated.connect(self.on_speed_updated)
         self.speed_sensor.start()
 
-        # Start controller
-        self.controller_thread = ThreadSafeController(self.current_controller, self.config)
+        # Start controller with motor_pwm instance
+        self.controller_thread = ThreadSafeController(
+            self.current_controller,
+            self.config,
+            motor_pwm=self.motor_pwm
+        )
         self.controller_thread.pwm_updated.connect(self.on_pwm_updated)
         self.controller_thread.metrics_updated.connect(self.on_metrics_updated)
         self.controller_thread.start()
@@ -898,15 +968,17 @@ class ModernMotorControlGUI(QMainWindow):
         self.score_label.setText(f"Overall Score: {metrics['score']:.1f}/100")
 
     def update_display(self):
-        """Update display with current values"""
+        """Update display with current values (thread-safe)"""
         if not self.controller_thread:
             return
 
         # Get current values
         target = self.target_slider.value()
 
+        # Thread-safe: copy all values inside lock to avoid TOCTOU
         with self.controller_thread.state_lock:
             current = self.controller_thread.current_speed
+            motor_enabled = self.controller_thread.motor_enabled
 
         # Update target if changed
         self.controller_thread.set_target_speed(target)
@@ -931,8 +1003,8 @@ class ModernMotorControlGUI(QMainWindow):
         self.plot_widget.update_data(target, current)
 
         # Update status indicators
-        self.sensor_status.setStatus("ok")
-        self.controller_status.setStatus("ok")
+        self.sensor_status.setStatus("ok" if motor_enabled else "inactive")
+        self.controller_status.setStatus("ok" if motor_enabled else "inactive")
 
     def start_motor(self):
         """Start motor"""
@@ -989,15 +1061,39 @@ class ModernMotorControlGUI(QMainWindow):
             self.controller_thread.request_metrics()
 
     def load_logs(self):
-        """Load logs from file"""
+        """Load logs from file with size limit for safety"""
         log_file = self.config.paths.logs_dir / "motor_control.log"
 
         if log_file.exists():
-            with open(log_file, 'r') as f:
-                logs = f.read()
-                self.log_text.setPlainText(logs)
+            try:
+                # Check file size to prevent memory exhaustion
+                file_size = log_file.stat().st_size
+
+                if file_size > MAX_LOG_FILE_READ_BYTES:
+                    # Read only the last N bytes
+                    with open(log_file, 'rb') as f:
+                        f.seek(-MAX_LOG_FILE_READ_BYTES, 2)  # Seek from end
+                        logs = f.read().decode('utf-8', errors='ignore')
+                        # Find first complete line
+                        first_newline = logs.find('\n')
+                        if first_newline != -1:
+                            logs = logs[first_newline + 1:]
+                        self.log_text.setPlainText(
+                            f"[Showing last {MAX_LOG_FILE_READ_BYTES} bytes of {file_size} total]\n\n" + logs
+                        )
+                else:
+                    # File is small enough, read all
+                    with open(log_file, 'r', encoding='utf-8') as f:
+                        logs = f.read()
+                        self.log_text.setPlainText(logs)
+
                 # Scroll to bottom
-                self.log_text.moveCursor(self.log_text.textCursor().End)
+                cursor = self.log_text.textCursor()
+                cursor.movePosition(cursor.End)
+                self.log_text.setTextCursor(cursor)
+
+            except (OSError, IOError, UnicodeDecodeError) as e:
+                self.log_text.setPlainText(f"Error reading log file: {e}")
         else:
             self.log_text.setPlainText("No log file found.")
 
@@ -1015,8 +1111,8 @@ class ModernMotorControlGUI(QMainWindow):
             self.controller_thread.wait()
 
         # Cleanup GPIO
-        if is_raspberry_pi():
-            motor_pwm.stop()
+        if self.motor_pwm and is_raspberry_pi():
+            self.motor_pwm.stop()
             GPIO.cleanup()
 
         logger.info("Shutdown complete")

@@ -1,0 +1,51 @@
+# Dependabot configuration for automated dependency updates
+version: 2
+updates:
+  # Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "your-github-username"  # Replace with actual username
+    labels:
+      - "dependencies"
+      - "security"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    # Group related dependency updates
+    groups:
+      tensorflow:
+        patterns:
+          - "tensorflow*"
+          - "keras*"
+      testing:
+        patterns:
+          - "pytest*"
+      security:
+        patterns:
+          - "safety"
+          - "bandit"
+    # Allow both direct and indirect dependency updates
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+    # Ignore specific versions if needed
+    ignore:
+      # Example: ignore specific versions
+      # - dependency-name: "tensorflow"
+      #   versions: ["2.14.x"]
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "github-actions"
+      - "dependencies"

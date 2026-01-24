@@ -8,6 +8,7 @@ from typing import Optional
 from base_controller import BaseController
 from logger_utils import get_logger
 from config import get_config
+from constants import MIN_TIMESTEP_SECONDS, DEFAULT_DERIVATIVE_FILTER_ALPHA
 
 
 class PIController(BaseController):
@@ -57,8 +58,8 @@ class PIController(BaseController):
         self.prev_time = current_time
 
         # Avoid computation if dt is too small
-        if dt < 1e-6:
-            dt = 1e-6
+        if dt < MIN_TIMESTEP_SECONDS:
+            dt = MIN_TIMESTEP_SECONDS
 
         # Calculate error
         error = target_speed - current_speed
@@ -122,7 +123,7 @@ class PIDController(BaseController):
         self.derivative = 0.0
 
         # Derivative filtering (exponential moving average)
-        self.derivative_filter_alpha = 0.1
+        self.derivative_filter_alpha = DEFAULT_DERIVATIVE_FILTER_ALPHA
 
         self.logger.info(f"PID Controller initialized: Kp={self.kp}, Ki={self.ki}, Kd={self.kd}")
 
@@ -143,8 +144,8 @@ class PIDController(BaseController):
         self.prev_time = current_time
 
         # Avoid computation if dt is too small
-        if dt < 1e-6:
-            dt = 1e-6
+        if dt < MIN_TIMESTEP_SECONDS:
+            dt = MIN_TIMESTEP_SECONDS
 
         # Calculate error
         error = target_speed - current_speed

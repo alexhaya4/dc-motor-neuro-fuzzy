@@ -11,6 +11,16 @@ from skfuzzy import control as ctrl
 
 from logger_utils import get_logger, log_exception
 from config import get_config
+from constants import (
+    MAX_SPEED_PERCENT,
+    MIN_SPEED_PERCENT,
+    MAX_PWM_DUTY_CYCLE,
+    MIN_PWM_DUTY_CYCLE,
+    FUZZY_UNIVERSE_MIN,
+    FUZZY_UNIVERSE_MAX,
+    FUZZY_ERROR_CLAMP_MIN,
+    FUZZY_ERROR_CLAMP_MAX
+)
 
 
 class ControllerValidationError(Exception):
@@ -49,13 +59,19 @@ class BaseController(ABC):
             raise ControllerValidationError(f"Invalid current_speed: {current_speed}")
 
         # Check range
-        if not (0 <= target_speed <= 100):
-            self.logger.warning(f"target_speed {target_speed} out of range, clamping to 0-100")
-            target_speed = max(0, min(100, target_speed))
+        if not (MIN_SPEED_PERCENT <= target_speed <= MAX_SPEED_PERCENT):
+            self.logger.warning(
+                f"target_speed {target_speed} out of range, "
+                f"clamping to {MIN_SPEED_PERCENT}-{MAX_SPEED_PERCENT}"
+            )
+            target_speed = max(MIN_SPEED_PERCENT, min(MAX_SPEED_PERCENT, target_speed))
 
-        if not (0 <= current_speed <= 100):
-            self.logger.warning(f"current_speed {current_speed} out of range, clamping to 0-100")
-            current_speed = max(0, min(100, current_speed))
+        if not (MIN_SPEED_PERCENT <= current_speed <= MAX_SPEED_PERCENT):
+            self.logger.warning(
+                f"current_speed {current_speed} out of range, "
+                f"clamping to {MIN_SPEED_PERCENT}-{MAX_SPEED_PERCENT}"
+            )
+            current_speed = max(MIN_SPEED_PERCENT, min(MAX_SPEED_PERCENT, current_speed))
 
         return target_speed, current_speed
 
@@ -96,16 +112,21 @@ class BaseController(ABC):
             self.prev_error = target_speed - current_speed
 
             # Clamp output
-            output = max(0, min(100, output))
+            output = max(MIN_PWM_DUTY_CYCLE, min(MAX_PWM_DUTY_CYCLE, output))
 
             return output
 
         except ControllerValidationError as e:
             log_exception(self.logger, "Controller validation error", e)
-            return 0.0
+            return MIN_PWM_DUTY_CYCLE
+        except (ValueError, TypeError, ArithmeticError) as e:
+            # Catch specific numeric/type errors
+            log_exception(self.logger, "Computation error in controller", e)
+            return MIN_PWM_DUTY_CYCLE
         except Exception as e:
+            # Last resort - log and fail safe
             log_exception(self.logger, "Unexpected error in controller computation", e)
-            return 0.0
+            return MIN_PWM_DUTY_CYCLE
 
     def reset(self) -> None:
         """Reset controller state"""
@@ -127,9 +148,9 @@ class FuzzyControllerBase(BaseController):
     def _initialize_fuzzy_system(self) -> None:
         """Initialize the fuzzy inference system"""
         try:
-            # Get configuration
-            universe_min = self.config.controller.fuzzy_universe_min
-            universe_max = self.config.controller.fuzzy_universe_max
+            # Get configuration (use constants as fallback)
+            universe_min = getattr(self.config.controller, 'fuzzy_universe_min', FUZZY_UNIVERSE_MIN)
+            universe_max = getattr(self.config.controller, 'fuzzy_universe_max', FUZZY_UNIVERSE_MAX)
 
             # Create fuzzy variables
             self.error = ctrl.Antecedent(
@@ -138,7 +159,9 @@ class FuzzyControllerBase(BaseController):
             self.delta_error = ctrl.Antecedent(
                 np.arange(universe_min, universe_max + 1, 1), 'delta_error'
             )
-            self.pwm_output = ctrl.Consequent(np.arange(0, 101, 1), 'pwm_output')
+            self.pwm_output = ctrl.Consequent(
+                np.arange(MIN_PWM_DUTY_CYCLE, MAX_PWM_DUTY_CYCLE + 1, 1), 'pwm_output'
+            )
 
             # Define membership functions
             self._define_membership_functions()
@@ -224,8 +247,8 @@ class FuzzyControllerBase(BaseController):
         delta_error = error - self.prev_error
 
         # Clamp inputs to fuzzy universe
-        error = max(min(error, 100), -100)
-        delta_error = max(min(delta_error, 100), -100)
+        error = max(min(error, FUZZY_ERROR_CLAMP_MAX), FUZZY_ERROR_CLAMP_MIN)
+        delta_error = max(min(delta_error, FUZZY_ERROR_CLAMP_MAX), FUZZY_ERROR_CLAMP_MIN)
 
         try:
             # Set fuzzy inputs
@@ -238,10 +261,12 @@ class FuzzyControllerBase(BaseController):
 
             return pwm
 
-        except Exception as e:
+        except (ValueError, KeyError, RuntimeError) as e:
             log_exception(self.logger, "Fuzzy computation failed", e)
             # Return proportional control as fallback
-            return 50 + error * 0.5
+            proportional_gain = 0.5
+            fallback_output = (MAX_PWM_DUTY_CYCLE / 2) + error * proportional_gain
+            return max(MIN_PWM_DUTY_CYCLE, min(MAX_PWM_DUTY_CYCLE, fallback_output))
 
     def reset(self) -> None:
         """Reset fuzzy controller state"""
