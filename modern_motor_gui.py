@@ -33,7 +33,7 @@ from animated_widgets import (AnimatedCard, CircularGauge, StatusIndicator,
                               PulseButton, SmoothSlider, AnimatedProgressBar)
 from conventional_controllers import PIController, PIDController
 from fuzzy_controller import FuzzyController
-from anfis_controller import ANFISController
+from neural_tuned_fuzzy_controller import NeuralTunedFuzzyController
 from constants import (
     SETTLING_TIME_TOLERANCE_PERCENT,
     STEADY_STATE_SAMPLES,
@@ -471,10 +471,10 @@ class ModernMotorControlGUI(QMainWindow):
             'PI': PIController(),
             'PID': PIDController(),
             'Fuzzy': FuzzyController(),
-            'ANFIS': ANFISController()
+            'Neural-Tuned Fuzzy': NeuralTunedFuzzyController()
         }
-        self.current_controller_name = 'ANFIS'
-        self.current_controller = self.controllers['ANFIS']
+        self.current_controller_name = 'Neural-Tuned Fuzzy'
+        self.current_controller = self.controllers['Neural-Tuned Fuzzy']
 
         # Threads
         self.speed_sensor = None
@@ -611,14 +611,14 @@ class ModernMotorControlGUI(QMainWindow):
         layout.addSpacing(16)
 
         # Current controller
-        self.controller_label = QLabel("Controller: ANFIS")
+        self.controller_label = QLabel("Controller: Neural-Tuned Fuzzy")
         self.controller_label.setObjectName("subheading")
         layout.addWidget(self.controller_label)
 
-        # ANFIS status (if applicable)
-        self.anfis_status_label = QLabel("")
-        self.anfis_status_label.setObjectName("caption")
-        layout.addWidget(self.anfis_status_label)
+        # Neural-Tuned Fuzzy status (if applicable)
+        self.neural_tuned_status_label = QLabel("")
+        self.neural_tuned_status_label.setObjectName("caption")
+        layout.addWidget(self.neural_tuned_status_label)
 
         layout.addStretch()
 
@@ -728,12 +728,12 @@ class ModernMotorControlGUI(QMainWindow):
             ("PI Controller", "Simple, fast response"),
             ("PID Controller", "Handles disturbances"),
             ("Fuzzy Controller", "Non-linear, robust"),
-            ("ANFIS Controller ⭐", "Adaptive neural-fuzzy (BEST)")
+            ("Neural-Tuned Fuzzy Controller ⭐", "Adaptive neural-fuzzy (BEST)")
         ]
 
         for i, (name, desc) in enumerate(controllers):
             radio = QRadioButton(name)
-            if i == 3:  # ANFIS selected by default
+            if i == 3:  # Neural-Tuned Fuzzy selected by default
                 radio.setChecked(True)
             self.controller_group.addButton(radio, i)
             radio.toggled.connect(lambda checked, idx=i: self.on_controller_changed(idx) if checked else None)
@@ -930,7 +930,7 @@ class ModernMotorControlGUI(QMainWindow):
 
     def on_controller_changed(self, index: int):
         """Handle controller change"""
-        controller_names = ['PI', 'PID', 'Fuzzy', 'ANFIS']
+        controller_names = ['PI', 'PID', 'Fuzzy', 'Neural-Tuned Fuzzy']
         self.current_controller_name = controller_names[index]
         self.current_controller = self.controllers[self.current_controller_name]
 
@@ -941,13 +941,13 @@ class ModernMotorControlGUI(QMainWindow):
         # Update UI
         self.controller_label.setText(f"Controller: {self.current_controller_name}")
 
-        # Update ANFIS status
-        if self.current_controller_name == 'ANFIS':
+        # Update Neural-Tuned Fuzzy status
+        if self.current_controller_name == 'Neural-Tuned Fuzzy':
             status = self.current_controller.get_scaling_factors()
             mode = "Neural Networks Active" if status['using_neural_networks'] else "Fuzzy-Only Mode"
-            self.anfis_status_label.setText(f"└─ {mode}")
+            self.neural_tuned_status_label.setText(f"└─ {mode}")
         else:
-            self.anfis_status_label.setText("")
+            self.neural_tuned_status_label.setText("")
 
         logger.info(f"Controller changed to {self.current_controller_name}")
 

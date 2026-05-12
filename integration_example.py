@@ -17,7 +17,7 @@ import time
 from modern_theme import ModernTheme
 from conventional_controllers import PIDController, PIController
 from fuzzy_controller import FuzzyController
-from anfis_controller import ANFISController
+from neural_tuned_fuzzy_controller import NeuralTunedFuzzyController
 
 # Import new advanced features
 from advanced_plotting import AdvancedPlottingTabWidget
@@ -46,7 +46,7 @@ class EnhancedMotorGUI(QMainWindow):
             'PI': PIController(kp=0.6, ki=0.15),
             'PID': PIDController(kp=0.6, ki=0.15, kd=0.05),
             'Fuzzy': FuzzyController(),
-            'ANFIS': ANFISController()
+            'Neural-Tuned Fuzzy': NeuralTunedFuzzyController()
         }
         self.current_controller = self.controllers['PID']
         self.current_controller_name = 'PID'
@@ -104,7 +104,7 @@ class EnhancedMotorGUI(QMainWindow):
         selector_layout = QHBoxLayout()
         selector_layout.addWidget(QLabel("Controller:"))
 
-        for name in ['PI', 'PID', 'Fuzzy', 'ANFIS']:
+        for name in ['PI', 'PID', 'Fuzzy', 'Neural-Tuned Fuzzy']:
             btn = QPushButton(name)
             btn.clicked.connect(lambda checked, n=name: self.select_controller(n))
             selector_layout.addWidget(btn)
@@ -163,7 +163,7 @@ class EnhancedMotorGUI(QMainWindow):
             'PI': 'pi_controller',
             'PID': 'pid_controller',
             'Fuzzy': 'fuzzy_controller',
-            'ANFIS': 'anfis_controller'
+            'Neural-Tuned Fuzzy': 'neural_tuned_fuzzy_controller'
         }
 
         topic = topic_map.get(self.current_controller_name, 'pid_controller')
@@ -234,7 +234,7 @@ class EnhancedMotorGUI(QMainWindow):
             i_term = self.current_controller.ki * self.current_controller.integral
             d_term = 0.0
         else:
-            # Fuzzy/ANFIS don't have explicit P/I/D terms
+            # Fuzzy/Neural-Tuned Fuzzy don't have explicit P/I/D terms
             p_term = i_term = d_term = 0.0
 
         # Update metrics display

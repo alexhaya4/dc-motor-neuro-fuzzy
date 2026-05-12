@@ -1,6 +1,6 @@
 """
-ANFIS (Adaptive Neuro-Fuzzy Inference System) Controller
-Uses REAL trained neural networks to adapt fuzzy scaling factors
+Neural-Tuned Mamdani Fuzzy Controller
+Uses trained neural networks to predict scaling factors for a Mamdani fuzzy controller's inputs and output.
 """
 
 from typing import Optional, Dict
@@ -19,12 +19,12 @@ except ImportError:
     TENSORFLOW_AVAILABLE = False
 
 
-class ANFISController(FuzzyControllerBase):
+class NeuralTunedFuzzyController(FuzzyControllerBase):
     """
-    Adaptive Neuro-Fuzzy Inference System (ANFIS) Controller
+    Neural-Tuned Mamdani Fuzzy Controller
 
     This controller combines:
-    1. Fuzzy logic inference system (base layer)
+    1. Mamdani fuzzy inference system (base layer)
     2. Neural networks for adaptive parameter tuning (adaptation layer)
 
     The neural networks learn optimal scaling factors for:
@@ -42,7 +42,7 @@ class ANFISController(FuzzyControllerBase):
         use_neural_networks: bool = True
     ):
         """
-        Initialize ANFIS controller
+        Initialize Neural-Tuned Fuzzy Controller
 
         Args:
             models_dir: Directory containing trained neural network models
@@ -73,8 +73,8 @@ class ANFISController(FuzzyControllerBase):
             else:
                 self._load_neural_networks()
 
-        mode = "ANFIS (neural-fuzzy)" if self.using_neural_networks else "Fuzzy-only"
-        self.logger.info(f"ANFIS Controller initialized in {mode} mode")
+        mode = "Neural-Tuned Fuzzy (neural-fuzzy)" if self.using_neural_networks else "Fuzzy-only"
+        self.logger.info(f"Neural-Tuned Fuzzy Controller initialized in {mode} mode")
 
     def _load_neural_networks(self) -> None:
         """Load trained neural network models from disk"""
@@ -149,7 +149,7 @@ class ANFISController(FuzzyControllerBase):
 
     def _compute_control_output(self, target_speed: float, current_speed: float) -> float:
         """
-        Compute ANFIS control output
+        Compute Neural-Tuned Fuzzy control output
 
         Args:
             target_speed: Validated target speed (0-100%)
@@ -188,7 +188,7 @@ class ANFISController(FuzzyControllerBase):
             return pwm
 
         except Exception as e:
-            log_exception(self.logger, "ANFIS computation failed", e)
+            log_exception(self.logger, "Neural-Tuned Fuzzy computation failed", e)
             # Fallback to proportional control
             return 50 + error * 0.5
 
@@ -207,7 +207,7 @@ class ANFISController(FuzzyControllerBase):
         }
 
     def reset(self) -> None:
-        """Reset ANFIS controller state"""
+        """Reset Neural-Tuned Fuzzy Controller state"""
         super().reset()
         self.error_scale = 1.0
         self.delta_error_scale = 1.0
