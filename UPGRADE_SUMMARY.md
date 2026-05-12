@@ -16,7 +16,7 @@ This document summarizes all the critical fixes and improvements made to the DC 
 self.error_model = lambda target, actual: 1.0 + 0.01 * abs(target - actual)
 ```
 
-**Solution:** Created `anfis_controller.py` with ACTUAL trained neural networks:
+**Solution:** Created `neural_tuned_fuzzy_controller.py` with ACTUAL trained neural networks:
 ```python
 # NEW - REAL neural networks loaded from trained models
 self.error_network = keras.models.load_model('error_scale_network.keras')
@@ -26,7 +26,7 @@ self.error_scale = float(self.error_network.predict(input_data)[0][0])
 **Impact:**
 - ✅ Honest representation of capabilities
 - ✅ Actual adaptive learning from training data
-- ✅ Scientifically valid ANFIS implementation
+- ✅ Scientifically valid Neural-Tuned Fuzzy implementation
 
 ---
 
@@ -97,7 +97,7 @@ BaseController (validation, error handling)
     ├── PIDController
     └── FuzzyControllerBase (fuzzy system setup)
             ├── FuzzyController (pure fuzzy)
-            └── ANFISController (adaptive neuro-fuzzy)
+            └── NeuralTunedFuzzyController (adaptive neuro-fuzzy)
 ```
 
 **Impact:**
@@ -267,17 +267,17 @@ LOG_LEVEL=DEBUG
 
 **After:** Falls back to fuzzy-only mode:
 ```
-2026-01-16 10:30:45 - ANFISController - WARNING - Neural network models not found
-2026-01-16 10:30:45 - ANFISController - INFO - ANFIS Controller initialized in Fuzzy-only mode
+2026-01-16 10:30:45 - NeuralTunedFuzzyController - WARNING - Neural network models not found
+2026-01-16 10:30:45 - NeuralTunedFuzzyController - INFO - Neural-Tuned Fuzzy Controller initialized in Fuzzy-only mode
 ```
 
 ---
 
 ### 4. **Clear Controller Status**
 
-New method to check ANFIS status:
+New method to check Neural-Tuned Fuzzy status:
 ```python
-controller = ANFISController()
+controller = NeuralTunedFuzzyController()
 status = controller.get_scaling_factors()
 print(status)
 # {'error_scale': 1.2, 'delta_error_scale': 0.8,
@@ -308,7 +308,7 @@ print(status)
 1. **`config.py`** - Centralized configuration management
 2. **`logger_utils.py`** - Logging utilities
 3. **`base_controller.py`** - Base classes with validation
-4. **`anfis_controller.py`** - Real ANFIS implementation
+4. **`neural_tuned_fuzzy_controller.py`** - Real Neural-Tuned Fuzzy implementation
 
 ### Configuration
 5. **`requirements.txt`** - Python dependencies with versions
@@ -327,8 +327,8 @@ print(status)
 2. **`fuzzy_controller.py`** - Now uses base class, eliminates duplication
 
 ### Old Files Status
-- **`neuro_fuzzy_controller.py`** - ⚠️ DEPRECATED (use `anfis_controller.py`)
-- **`neural_fuzzy_controller.py`** - ⚠️ DEPRECATED (use `anfis_controller.py`)
+- **`neuro_fuzzy_controller.py`** - ⚠️ DEPRECATED (use `neural_tuned_fuzzy_controller.py`)
+- **`neural_fuzzy_controller.py`** - ⚠️ DEPRECATED (use `neural_tuned_fuzzy_controller.py`)
 
 ---
 
@@ -359,8 +359,8 @@ controller = NeuroFuzzyController()  # Fake neural networks
 
 **New way (RECOMMENDED):**
 ```python
-from anfis_controller import ANFISController
-controller = ANFISController()  # Real neural networks
+from neural_tuned_fuzzy_controller import NeuralTunedFuzzyController
+controller = NeuralTunedFuzzyController()  # Real neural networks
 ```
 
 **Pure Fuzzy (if no training data):**
@@ -414,7 +414,7 @@ class MyController(BaseController):
 
 1. **Update GUI to use new controllers**
    - Replace old controller imports
-   - Add ANFIS controller option
+   - Add Neural-Tuned Fuzzy controller option
    - Show scaling factors in real-time
 
 2. **Fix threading race conditions**
@@ -521,7 +521,7 @@ MIT License (unchanged)
 - [x] Code duplication eliminated
 - [x] Bare exceptions fixed
 - [x] Type hints added
-- [x] Real ANFIS controller created
+- [x] Real Neural-Tuned Fuzzy controller created
 - [ ] GUI updated with new controllers
 - [ ] Threading race conditions fixed
 - [ ] Unit tests written

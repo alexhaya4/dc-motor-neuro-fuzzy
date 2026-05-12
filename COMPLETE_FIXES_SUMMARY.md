@@ -125,9 +125,9 @@ This document provides a complete overview of all fixes, improvements, and enhan
 
 ---
 
-### 7. ✅ REAL ANFIS Controller (Replaces False "Neural Networks")
+### 7. ✅ REAL Neural-Tuned Fuzzy Controller (Replaces False "Neural Networks")
 
-**File Created:** `anfis_controller.py`
+**File Created:** `neural_tuned_fuzzy_controller.py`
 
 **This is the BIG FIX - replaces the fake neural networks!**
 
@@ -138,7 +138,7 @@ self.error_model = lambda target, actual: 1.0 + 0.01 * abs(target - actual)
 self.delta_error_model = lambda target, actual: 1.0 + 0.02 * abs(actual - self.prev_speed)
 ```
 
-#### New Solution (anfis_controller.py):
+#### New Solution (neural_tuned_fuzzy_controller.py):
 ```python
 # REAL neural networks loaded from trained models
 self.error_network = keras.models.load_model('error_scale_network.keras')
@@ -156,7 +156,7 @@ self.error_scale = float(self.error_network.predict(input_data)[0][0])
 **Benefits:**
 - ✅ Honest representation
 - ✅ Actual adaptive learning
-- ✅ Scientifically valid ANFIS
+- ✅ Scientifically valid Neural-Tuned Fuzzy
 - ✅ True neuro-fuzzy system
 
 ---
@@ -270,7 +270,7 @@ class ControllerThread:
 
 **Changes Needed:**
 1. Update imports to use new controllers
-2. Add ANFIS controller option
+2. Add Neural-Tuned Fuzzy controller option
 3. Show neural network scaling factors in real-time
 4. Apply modern theme from UX_IMPROVEMENTS.md
 5. Fix polling to use GPIO event detection
@@ -305,7 +305,7 @@ dc-motor-neuro-fuzzy/
 ├── config.py                          # ✅ Configuration system
 ├── logger_utils.py                    # ✅ Logging utilities
 ├── base_controller.py                 # ✅ Base classes
-├── anfis_controller.py                # ✅ REAL ANFIS controller
+├── neural_tuned_fuzzy_controller.py                # ✅ REAL Neural-Tuned Fuzzy controller
 ├── requirements.txt                   # ✅ Dependencies
 ├── .env.example                       # ✅ Config template
 ├── UPGRADE_SUMMARY.md                 # ✅ Upgrade documentation
@@ -389,13 +389,13 @@ controller = PIDController(kp=0.6, ki=0.15, kd=0.05)
 pwm = controller.compute_output(target_speed=70, current_speed=50)
 ```
 
-#### Option 3: ANFIS (Adaptive Neuro-Fuzzy) ⭐ BEST
+#### Option 3: Neural-Tuned Fuzzy (Adaptive Neuro-Fuzzy) ⭐ BEST
 
 ```python
-from anfis_controller import ANFISController
+from neural_tuned_fuzzy_controller import NeuralTunedFuzzyController
 
 # Automatically loads neural networks if available
-controller = ANFISController()
+controller = NeuralTunedFuzzyController()
 
 # Check if neural networks loaded
 status = controller.get_scaling_factors()
@@ -508,8 +508,8 @@ LOG_LEVEL=ERROR  # Shows only errors
 ```
 2026-01-16 10:30:45 - PIController - INFO - PI Controller initialized: Kp=0.5, Ki=0.1
 2026-01-16 10:30:46 - BaseController - WARNING - current_speed 105.3 out of range, clamping to 0-100
-2026-01-16 10:30:50 - ANFISController - INFO - Neural network models loaded successfully
-2026-01-16 10:30:50 - ANFISController - INFO - ANFIS Controller initialized in ANFIS (neural-fuzzy) mode
+2026-01-16 10:30:50 - NeuralTunedFuzzyController - INFO - Neural network models loaded successfully
+2026-01-16 10:30:50 - NeuralTunedFuzzyController - INFO - Neural-Tuned Fuzzy Controller initialized in Neural-Tuned Fuzzy (neural-fuzzy) mode
 ```
 
 ---
@@ -552,11 +552,11 @@ If updating from old code:
 - [ ] Create `.env` file from `.env.example`
 - [ ] Update controller imports:
   - ❌ `from neuro_fuzzy_controller import NeuroFuzzyController`
-  - ✅ `from anfis_controller import ANFISController`
+  - ✅ `from neural_tuned_fuzzy_controller import NeuralTunedFuzzyController`
 - [ ] Run tests to verify: `pytest tests/ -v`
 - [ ] Check logs directory created: `logs/`
 - [ ] Verify models directory exists: `models/`
-- [ ] Train neural networks (if using ANFIS)
+- [ ] Train neural networks (if using Neural-Tuned Fuzzy)
 - [ ] Test hardware integration
 - [ ] Update GUI to use new controllers
 - [ ] Review configuration in `.env`

@@ -323,7 +323,7 @@ The new `educational_features.py` module provides:
 - `pi_controller` - PI Controller basics
 - `pid_controller` - PID Controller complete guide
 - `fuzzy_controller` - Fuzzy Logic introduction
-- `anfis_controller` - ANFIS neural-fuzzy system
+- `neural_tuned_fuzzy_controller` - Neural-Tuned Fuzzy neural-fuzzy system
 
 **Concepts:**
 - `anti_windup` - Integral windup prevention
@@ -866,7 +866,7 @@ show_tutorial()
 
 1. **Try the interactive tutorial** - Click "🎓 Start Interactive Tutorial"
 2. **Explore multi-trace plotting** - Enable P/I/D term traces
-3. **Compare controllers** - Run PI, PID, Fuzzy, ANFIS side-by-side
+3. **Compare controllers** - Run PI, PID, Fuzzy, Neural-Tuned Fuzzy side-by-side
 4. **Export your results** - Save plots and data for analysis
 5. **Analyze frequency content** - Use FFT to check stability
 6. **Learn control theory** - Use quick reference buttons

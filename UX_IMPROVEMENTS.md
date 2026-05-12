@@ -138,7 +138,7 @@ QSlider::handle:horizontal:hover {
 │  │ ● Motor: ON      │  │  Speed: 75.3 RPM           │ │
 │  │ ● Sensor: OK     │  │  Target: 80.0 RPM          │ │
 │  │ ● Controller:    │  │  Error: -4.7 RPM           │ │
-│  │   ANFIS (NN)     │  │  PWM: 78.2%                │ │
+│  │   Neural-Tuned Fuzzy (NN)     │  │  PWM: 78.2%                │ │
 │  │                   │  │                             │ │
 │  │ Uptime: 02:34:12 │  │  [█████████░░] 75%         │ │
 │  └──────────────────┘  └─────────────────────────────┘ │
@@ -208,7 +208,7 @@ QSlider::handle:horizontal:hover {
 
 **C. Neural Network Confidence Visualization**
 
-For ANFIS controller, show real-time adaptation:
+For Neural-Tuned Fuzzy controller, show real-time adaptation:
 ```
 ┌──────────────────────────────────────┐
 │ Neural Network Scaling Factors       │
@@ -251,7 +251,7 @@ For ANFIS controller, show real-time adaptation:
 │    └─ Non-linear, robust                  │
 │    └─ Recommended: Variable loads         │
 │                                            │
-│  ● ANFIS (Neuro-Fuzzy) ⭐ BEST            │
+│  ● Neural-Tuned Fuzzy (Neuro-Fuzzy) ⭐ BEST            │
 │    └─ Adaptive, learns from data          │
 │    └─ Recommended: Maximum performance    │
 │    └─ Requires: Trained models            │
@@ -471,7 +471,7 @@ Application was closed unexpectedly last time
 │ 📁 Recover Previous Session?               │
 ├────────────────────────────────────────────┤
 │ Session from: 2026-01-16 14:32:15         │
-│ Controller: ANFIS                          │
+│ Controller: Neural-Tuned Fuzzy                          │
 │ Runtime: 12 minutes                        │
 │ Target Speed: 80 RPM                       │
 │                                            │
@@ -517,20 +517,20 @@ Application was closed unexpectedly last time
 **Compare different controllers side-by-side:**
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ Controller Comparison: PID vs ANFIS                     │
+│ Controller Comparison: PID vs Neural-Tuned Fuzzy                     │
 ├─────────────────────────────────────────────────────────┤
-│          │      PID      │     ANFIS     │   Winner     │
+│          │      PID      │     Neural-Tuned Fuzzy     │   Winner     │
 ├──────────┼───────────────┼───────────────┼──────────────┤
-│ Overshoot│     12.3%     │      4.2%     │   ANFIS ✓   │
-│ Settling │     2.1s      │      1.3s     │   ANFIS ✓   │
-│ SS Error │     1.2%      │      0.3%     │   ANFIS ✓   │
-│ Robustness│     Good      │    Excellent  │   ANFIS ✓   │
+│ Overshoot│     12.3%     │      4.2%     │   Neural-Tuned Fuzzy ✓   │
+│ Settling │     2.1s      │      1.3s     │   Neural-Tuned Fuzzy ✓   │
+│ SS Error │     1.2%      │      0.3%     │   Neural-Tuned Fuzzy ✓   │
+│ Robustness│     Good      │    Excellent  │   Neural-Tuned Fuzzy ✓   │
 │ CPU Usage│     Low       │    Medium     │   PID ✓     │
 ├──────────┼───────────────┼───────────────┼──────────────┤
-│ Overall  │    82/100     │    95/100     │   ANFIS ✓   │
+│ Overall  │    82/100     │    95/100     │   Neural-Tuned Fuzzy ✓   │
 └─────────────────────────────────────────────────────────┘
 
-[View Detailed Report] [Export Comparison] [Switch to ANFIS]
+[View Detailed Report] [Export Comparison] [Switch to Neural-Tuned Fuzzy]
 ```
 
 ---
@@ -619,7 +619,7 @@ Every section has a [?] button:
 │ ├─ PI Controller                           │
 │ ├─ PID Controller                          │
 │ ├─ Fuzzy Controller                        │
-│ └─ ANFIS Controller                        │
+│ └─ Neural-Tuned Fuzzy Controller                        │
 │                                            │
 │ Advanced Topics                            │
 │ ├─ Training Neural Networks                │

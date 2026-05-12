@@ -107,7 +107,7 @@ import sys
 from modern_theme import ModernTheme
 from animated_widgets import (AnimatedCard, CircularGauge, StatusIndicator,
                               PulseButton, SmoothSlider, AnimatedProgressBar)
-from anfis_controller import ANFISController
+from neural_tuned_fuzzy_controller import NeuralTunedFuzzyController
 from conventional_controllers import PIDController
 from fuzzy_controller import FuzzyController
 
@@ -125,9 +125,9 @@ class ModernMotorControlGUI(QMainWindow):
             'PI': None,  # Will be initialized when needed
             'PID': PIDController(),
             'Fuzzy': FuzzyController(),
-            'ANFIS': ANFISController()
+            'Neural-Tuned Fuzzy': NeuralTunedFuzzyController()
         }
-        self.current_controller = self.controllers['ANFIS']
+        self.current_controller = self.controllers['Neural-Tuned Fuzzy']
 
         # Setup UI
         self.setup_ui()
@@ -206,7 +206,7 @@ class ModernMotorControlGUI(QMainWindow):
         status_layout.addSpacing(20)
 
         # Current controller
-        controller_label = QLabel("Controller: ANFIS (Neural)")
+        controller_label = QLabel("Controller: Neural-Tuned Fuzzy (Neural)")
         controller_label.setObjectName("subheading")
         status_layout.addWidget(controller_label)
 
@@ -330,12 +330,12 @@ class ModernMotorControlGUI(QMainWindow):
             ("PI Controller", "Simple, fast response"),
             ("PID Controller", "Handles disturbances"),
             ("Fuzzy Controller", "Non-linear, robust"),
-            ("ANFIS ⭐", "Adaptive neural-fuzzy (BEST)")
+            ("Neural-Tuned Fuzzy ⭐", "Adaptive neural-fuzzy (BEST)")
         ]
 
         for i, (name, desc) in enumerate(controllers):
             radio = QRadioButton(name)
-            if i == 3:  # ANFIS selected by default
+            if i == 3:  # Neural-Tuned Fuzzy selected by default
                 radio.setChecked(True)
             self.controller_group.addButton(radio, i)
             controller_layout.addWidget(radio)
@@ -574,7 +574,7 @@ python modern_motor_gui.py
 
 ✅ **PI/PID** - Standard textbook implementation
 ✅ **Fuzzy** - Proper Mamdani inference system
-✅ **ANFIS** - Real TensorFlow neural networks (not fake lambdas)
+✅ **Neural-Tuned Fuzzy** - Real TensorFlow neural networks (not fake lambdas)
 
 The false "neural networks" have been completely replaced with actual trained models!
 
