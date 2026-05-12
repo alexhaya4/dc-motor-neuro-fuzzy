@@ -3,7 +3,7 @@ import sys
 from nn_models import NeuralNetworkTrainer
 
 def main():
-    print("Starting neural network training for ANFIS controller...")
+    print("Starting neural network training for Neural-Tuned Fuzzy Controller...")
     
     # Check if training data exists
     if not os.path.exists("training_data.json"):

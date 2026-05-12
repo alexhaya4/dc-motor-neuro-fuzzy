@@ -155,23 +155,23 @@ Unlike PID which uses precise math, fuzzy logic uses linguistic rules:
             }
         },
 
-        'anfis_controller': {
-            'title': 'ANFIS - Adaptive Neuro-Fuzzy Controller',
-            'short': 'Combines fuzzy logic with neural network learning for adaptive control',
+        'neural_tuned_fuzzy_controller': {
+            'title': 'Neural-Tuned Mamdani Fuzzy Controller',
+            'short': 'A Mamdani fuzzy controller with neural networks predicting scaling factors for adaptive control',
             'detailed': """
-**ANFIS - Adaptive Neuro-Fuzzy Inference System**
+**Neural-Tuned Mamdani Fuzzy Controller**
 
 Combines the best of both worlds:
-- Fuzzy Logic: Human-readable rules
+- Fuzzy Logic: Human-readable Mamdani rules
 - Neural Networks: Learning from data
 
 **How It Works:**
 
-1. **Base Fuzzy Controller:**
-   Traditional fuzzy system with rules
+1. **Base Mamdani Fuzzy Controller:**
+   Traditional Mamdani fuzzy system with rules
 
 2. **Neural Network Adaptation:**
-   Three neural networks learn optimal scaling:
+   Three small neural networks predict optimal scaling:
    - Error scaling network
    - Delta-error scaling network
    - Output scaling network
@@ -181,18 +181,18 @@ Combines the best of both worlds:
    Adapts to motor characteristics automatically
 
 4. **Operation:**
-   Fuzzy controller output × learned scaling factors
+   Fuzzy controller output x learned scaling factors
 
 **Advantages:**
-✓ Learns optimal parameters from data
-✓ Adapts to system changes
-✓ Combines rules with learning
-✓ Better performance than pure fuzzy
+- Learns optimal parameters from data
+- Adapts to system changes
+- Combines rules with learning
+- Better performance than pure fuzzy
 
 **Why It's Better:**
 - PID: Fixed parameters, needs manual tuning
 - Fuzzy: Fixed rules, no learning
-- ANFIS: Learns and adapts automatically
+- Neural-Tuned Fuzzy: Learns and adapts automatically
 
 **Training Requirements:**
 - Collect data across operating range
@@ -200,7 +200,7 @@ Combines the best of both worlds:
 - Train neural networks offline
 - Deploy trained models
             """,
-            'formula': 'output = fuzzy_output × neural_scaling_factor',
+            'formula': 'output = fuzzy_output x neural_scaling_factor',
             'parameters': {
                 'Error Scale Network': 'Learns optimal error term scaling',
                 'Delta-Error Scale Network': 'Learns optimal derivative scaling',
@@ -591,7 +591,7 @@ You have 4 options:
    - Robust to changes
    - Good default performance
 
-4. **ANFIS** - Intelligent adaptive ⭐
+4. **Neural-Tuned Fuzzy** - Intelligent adaptive ⭐
    - Learns from data
    - Best overall performance
    - Requires training data
@@ -740,7 +740,7 @@ You now know:
 
 1. Experiment with different controllers
 2. Try the auto-tuner
-3. Collect training data for ANFIS
+3. Collect training data for Neural-Tuned Fuzzy Controller
 4. Compare controller performance
 5. Export and analyze your results
 
@@ -858,7 +858,7 @@ class EducationalPanel(QWidget):
             ('PI Controller', 'pi_controller'),
             ('PID Controller', 'pid_controller'),
             ('Fuzzy Logic', 'fuzzy_controller'),
-            ('ANFIS', 'anfis_controller'),
+            ('Neural-Tuned Fuzzy', 'neural_tuned_fuzzy_controller'),
             ('Anti-Windup', 'anti_windup'),
             ('Derivative Filtering', 'derivative_filtering'),
             ('Performance Metrics', 'performance_metrics'),

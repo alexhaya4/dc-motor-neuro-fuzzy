@@ -178,19 +178,19 @@ class SpeedPlotCanvas(FigureCanvas):
         
         # Data storage for different controllers
         self.controller_data = {
-            "ANFIS": {"time": np.array([]), "speed": np.array([]), "target": np.array([]), "color": 'red'},
+            "Neural-Tuned Fuzzy": {"time": np.array([]), "speed": np.array([]), "target": np.array([]), "color": 'red'},
             "PI": {"time": np.array([]), "speed": np.array([]), "target": np.array([]), "color": 'blue'},
             "PID": {"time": np.array([]), "speed": np.array([]), "target": np.array([]), "color": 'green'}
         }
         
         # Tracking current controller
-        self.current_controller = "ANFIS"
+        self.current_controller = "Neural-Tuned Fuzzy"
         
         # For smoothing
         self.smooth_window = 7  # Increased for smoother curves
         
         # Start times for each controller session
-        self.start_times = {"ANFIS": time.time(), "PI": time.time(), "PID": time.time()}
+        self.start_times = {"Neural-Tuned Fuzzy": time.time(), "PI": time.time(), "PID": time.time()}
         
         # Plot configuration
         self.show_grid = True
@@ -341,7 +341,7 @@ class MainWindow(QMainWindow):
         self.pid_controller = PIDController(kp=0.8, ki=0.3, kd=0.1)
         
         self.active_controller = self.neuro_fuzzy_controller
-        self.controller_type = "ANFIS"
+        self.controller_type = "Neural-Tuned Fuzzy"
         
         motor_pwm.ChangeDutyCycle(0)
         self.target_rpm = 0
@@ -378,7 +378,7 @@ class MainWindow(QMainWindow):
         training_tab.setLayout(training_layout)
 
         training_description = QLabel(
-            "This tab lets you collect training data, train neural networks, and select models for the ANFIS controller."
+            "This tab lets you collect training data, train neural networks, and select models for the Neural-Tuned Fuzzy Controller."
         )
         training_description.setWordWrap(True)
         training_layout.addWidget(training_description)
@@ -440,7 +440,7 @@ class MainWindow(QMainWindow):
         model_layout = QVBoxLayout()
         model_group.setLayout(model_layout)
         model_desc = QLabel(
-            "Select and load trained models for the ANFIS controller. "
+            "Select and load trained models for the Neural-Tuned Fuzzy Controller. "
             "You can view information about the available models."
         )
         model_desc.setWordWrap(True)
@@ -521,17 +521,17 @@ class MainWindow(QMainWindow):
         controller_select_group = QGroupBox("Controller Selection")
         controller_select_layout = QHBoxLayout()
         controller_select_group.setLayout(controller_select_layout)
-        self.anfis_button = QPushButton("ANFIS")
+        self.neural_tuned_button = QPushButton("Neural-Tuned Fuzzy")
         self.pi_button = QPushButton("PI")
         self.pid_button = QPushButton("PID")
-        self.anfis_button.setCheckable(True)
+        self.neural_tuned_button.setCheckable(True)
         self.pi_button.setCheckable(True)
         self.pid_button.setCheckable(True)
-        self.anfis_button.setChecked(True)
-        self.anfis_button.clicked.connect(lambda: self.change_controller("ANFIS"))
+        self.neural_tuned_button.setChecked(True)
+        self.neural_tuned_button.clicked.connect(lambda: self.change_controller("Neural-Tuned Fuzzy"))
         self.pi_button.clicked.connect(lambda: self.change_controller("PI"))
         self.pid_button.clicked.connect(lambda: self.change_controller("PID"))
-        controller_select_layout.addWidget(self.anfis_button)
+        controller_select_layout.addWidget(self.neural_tuned_button)
         controller_select_layout.addWidget(self.pi_button)
         controller_select_layout.addWidget(self.pid_button)
         control_layout.addWidget(controller_select_group)
@@ -603,12 +603,12 @@ class MainWindow(QMainWindow):
         plot_controls_layout = QGridLayout()
         plot_controls_group.setLayout(plot_controls_layout)
         plot_controls_layout.addWidget(QLabel("Show Controllers:"), 0, 0)
-        self.show_anfis_cb = QCheckBox("ANFIS")
-        self.show_anfis_cb.setChecked(True)
-        self.show_anfis_cb.stateChanged.connect(
-            lambda state: self.speed_plot.toggle_controller_visibility("ANFIS", state == Qt.Checked)
+        self.show_neural_tuned_cb = QCheckBox("Neural-Tuned Fuzzy")
+        self.show_neural_tuned_cb.setChecked(True)
+        self.show_neural_tuned_cb.stateChanged.connect(
+            lambda state: self.speed_plot.toggle_controller_visibility("Neural-Tuned Fuzzy", state == Qt.Checked)
         )
-        plot_controls_layout.addWidget(self.show_anfis_cb, 0, 1)
+        plot_controls_layout.addWidget(self.show_neural_tuned_cb, 0, 1)
         self.show_pi_cb = QCheckBox("PI")
         self.show_pi_cb.setChecked(True)
         self.show_pi_cb.stateChanged.connect(
@@ -769,7 +769,7 @@ class MainWindow(QMainWindow):
         <ul>
             <li><b>PI Control</b>: Proportional-Integral control is a widely used feedback control method where the control signal is a sum of terms proportional to the error and the integral of the error.</li>
             <li><b>PID Control</b>: Proportional-Integral-Derivative control adds a term proportional to the derivative of the error, improving transient response.</li>
-            <li><b>ANFIS Control</b>: Adaptive Neuro-Fuzzy Inference System combines fuzzy logic with neural networks for adaptive control.</li>
+            <li><b>Neural-Tuned Fuzzy Control</b>: A Mamdani fuzzy controller with neural networks predicting scaling factors for adaptive control.</li>
         </ul>
         <h3>Advantages of Neuro-Fuzzy Control</h3>
         <ul>
@@ -784,7 +784,7 @@ class MainWindow(QMainWindow):
             <li>Compare step response of different controllers</li>
             <li>Observe disturbance rejection by applying physical load while running</li>
             <li>Tune PI and PID parameters to see their effects on performance</li>
-            <li>Track how ANFIS scaling factors adapt to changes</li>
+            <li>Track how Neural-Tuned Fuzzy scaling factors adapt to changes</li>
             <li>Export data for different controllers and compare key metrics</li>
         </ol>
         """)
@@ -830,7 +830,7 @@ class MainWindow(QMainWindow):
     def update_controller_info(self, pwm, error_scale=1.0, delta_error_scale=1.0, output_scale=1.0, error=0):
         self.pwm_label.setText(f"{pwm:.2f} %")
         self.error_label.setText(f"{error:.2f}")
-        if self.controller_type == "ANFIS":
+        if self.controller_type == "Neural-Tuned Fuzzy":
             self.error_scale_label.setText(f"{error_scale:.4f}")
             self.delta_error_scale_label.setText(f"{delta_error_scale:.4f}")
             self.output_scale_label.setText(f"{output_scale:.4f}")
@@ -851,12 +851,12 @@ class MainWindow(QMainWindow):
         self.speed_plot.reset_plot()
     
     def change_controller(self, controller_type):
-        self.anfis_button.setChecked(controller_type == "ANFIS")
+        self.neural_tuned_button.setChecked(controller_type == "Neural-Tuned Fuzzy")
         self.pi_button.setChecked(controller_type == "PI")
         self.pid_button.setChecked(controller_type == "PID")
         self.pi_controller.reset()
         self.pid_controller.reset()
-        if controller_type == "ANFIS":
+        if controller_type == "Neural-Tuned Fuzzy":
             self.active_controller = self.neuro_fuzzy_controller
         elif controller_type == "PI":
             self.active_controller = self.pi_controller
@@ -1038,7 +1038,7 @@ class MainWindow(QMainWindow):
             headers.append("PWM(%)")
         if self.log_error_checkbox.isChecked():
             headers.append("Error")
-        if self.log_scaling_checkbox.isChecked() and self.controller_type == "ANFIS":
+        if self.log_scaling_checkbox.isChecked() and self.controller_type == "Neural-Tuned Fuzzy":
             headers.extend(["E_Scale", "DE_Scale", "O_Scale"])
         headers.append("Controller")
         header_row = " | ".join([f"{h:10}" for h in headers])
@@ -1060,7 +1060,7 @@ class MainWindow(QMainWindow):
                 data_point['pwm'] = float(self.pwm_label.text().replace(' %', ''))
             if self.log_error_checkbox.isChecked():
                 data_point['error'] = float(self.error_label.text())
-            if self.log_scaling_checkbox.isChecked() and self.controller_type == "ANFIS":
+            if self.log_scaling_checkbox.isChecked() and self.controller_type == "Neural-Tuned Fuzzy":
                 data_point['error_scale'] = float(self.error_scale_label.text())
                 data_point['delta_error_scale'] = float(self.delta_error_scale_label.text())
                 data_point['output_scale'] = float(self.output_scale_label.text())
@@ -1087,7 +1087,7 @@ class MainWindow(QMainWindow):
                     row_items.append(f"{point.get('pwm', 0):.2f}")
                 if self.log_error_checkbox.isChecked():
                     row_items.append(f"{point.get('error', 0):.2f}")
-                if self.log_scaling_checkbox.isChecked() and self.controller_type == "ANFIS":
+                if self.log_scaling_checkbox.isChecked() and self.controller_type == "Neural-Tuned Fuzzy":
                     row_items.append(f"{point.get('error_scale', 1.0):.2f}")
                     row_items.append(f"{point.get('delta_error_scale', 1.0):.2f}")
                     row_items.append(f"{point.get('output_scale', 1.0):.2f}")
@@ -1241,7 +1241,7 @@ class MainWindow(QMainWindow):
     
     def reload_neural_networks(self):
         new_controller = NeuralFuzzyController()
-        if self.controller_type == "ANFIS":
+        if self.controller_type == "Neural-Tuned Fuzzy":
             self.active_controller = new_controller
             self.neuro_fuzzy_controller = new_controller
             self.controller_thread.controller = new_controller
@@ -1313,7 +1313,7 @@ class MainWindow(QMainWindow):
             "output_scale": self.output_model_checkbox.isChecked()
         }
         new_controller = NeuralFuzzyController(models_to_use=models_to_use)
-        if self.controller_type == "ANFIS":
+        if self.controller_type == "Neural-Tuned Fuzzy":
             self.active_controller = new_controller
             self.neuro_fuzzy_controller = new_controller
             self.controller_thread.controller = new_controller
@@ -1322,7 +1322,7 @@ class MainWindow(QMainWindow):
         models_used = sum(1 for use in models_to_use.values() if use)
         self.show_message(
             "Models Loaded", 
-            f"{models_used} neural network models have been loaded and are now being used by the ANFIS controller."
+            f"{models_used} neural network models have been loaded and are now being used by the Neural-Tuned Fuzzy Controller."
         )
     
     def update_model_info(self):
