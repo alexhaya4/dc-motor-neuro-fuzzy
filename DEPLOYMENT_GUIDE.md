@@ -411,7 +411,7 @@ rsync -avz --exclude="logs/*" --exclude="models/*.keras" --exclude="__pycache__"
 # Install TF Lite instead
 pip install tflite-runtime
 
-# Modify anfis_controller.py to use TF Lite
+# Modify neural_tuned_fuzzy_controller.py to use TF Lite
 ```
 
 ### Problem 5: GUI Won't Start (No Display)

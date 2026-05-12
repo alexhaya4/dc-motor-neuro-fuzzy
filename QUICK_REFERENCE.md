@@ -42,11 +42,11 @@ controller = FuzzyController()
 pwm = controller.compute_output(target_speed=70, current_speed=50)
 ```
 
-### ANFIS Controller ⭐ (Adaptive Neuro-Fuzzy)
+### Neural-Tuned Fuzzy Controller ⭐ (Adaptive Neuro-Fuzzy)
 ```python
-from anfis_controller import ANFISController
+from neural_tuned_fuzzy_controller import NeuralTunedFuzzyController
 
-controller = ANFISController()
+controller = NeuralTunedFuzzyController()
 pwm = controller.compute_output(target_speed=70, current_speed=50)
 
 # Check if neural networks are active
@@ -121,7 +121,7 @@ controller.reset()
 
 ### Get Controller Status
 ```python
-# ANFIS only
+# Neural-Tuned Fuzzy only
 status = controller.get_scaling_factors()
 print(status)
 # {'error_scale': 1.2, 'delta_error_scale': 0.9,
@@ -141,7 +141,7 @@ print(status)
 **Fix:**
 1. Collect training data
 2. Run `python train_networks.py`
-3. Or use fuzzy-only mode: `ANFISController(use_neural_networks=False)`
+3. Or use fuzzy-only mode: `NeuralTunedFuzzyController(use_neural_networks=False)`
 
 ### Issue: GPIO error on non-RPi
 **Cause:** Running on development machine
@@ -167,7 +167,7 @@ dc-motor-neuro-fuzzy/
 │
 ├── conventional_controllers.py  # PI/PID controllers
 ├── fuzzy_controller.py          # Fuzzy controller
-├── anfis_controller.py          # ANFIS (neuro-fuzzy)
+├── neural_tuned_fuzzy_controller.py          # Neural-Tuned Fuzzy (neuro-fuzzy)
 │
 ├── requirements.txt             # Dependencies
 ├── .env.example                 # Config template
@@ -203,7 +203,7 @@ dc-motor-neuro-fuzzy/
 
 ### What's Different
 - ❌ Old: `from neuro_fuzzy_controller import NeuroFuzzyController`
-- ✅ New: `from anfis_controller import ANFISController`
+- ✅ New: `from neural_tuned_fuzzy_controller import NeuralTunedFuzzyController`
 
 - ❌ Old: Hardcoded parameters in code
 - ✅ New: Configure via `.env` file
@@ -226,11 +226,11 @@ controller = FuzzyController()
 ```
 
 ### Tip 2: Train Neural Networks for Best Performance
-ANFIS performs best with trained models:
+Neural-Tuned Fuzzy performs best with trained models:
 1. Collect data during operation
 2. Run `python train_networks.py`
 3. Models saved to `models/` directory
-4. ANFIS auto-loads on next run
+4. Neural-Tuned Fuzzy auto-loads on next run
 
 ### Tip 3: Monitor via Logs
 Keep logs open during testing:
@@ -253,7 +253,7 @@ cp .env.dev .env
 
 ## 📊 Controller Comparison
 
-| Feature | PI | PID | Fuzzy | ANFIS |
+| Feature | PI | PID | Fuzzy | Neural-Tuned Fuzzy |
 |---------|----|----|-------|-------|
 | **Complexity** | Low | Medium | Medium | High |
 | **Setup Time** | Fast | Fast | Fast | Slow (needs training) |
@@ -283,7 +283,7 @@ cp .env.dev .env
 - Linguistic rules preferred
 - No training data available
 
-### Use ANFIS Controller When: ⭐
+### Use Neural-Tuned Fuzzy Controller When: ⭐
 - Maximum performance required
 - Have training data available
 - System behavior changes over time
@@ -338,12 +338,12 @@ _Note: These will be implemented when GUI is updated_
 ### Common Questions:
 
 **Q: Which controller should I use?**
-A: Start with `FuzzyController`, upgrade to `ANFISController` when you have trained models.
+A: Start with `FuzzyController`, upgrade to `NeuralTunedFuzzyController` when you have trained models.
 
 **Q: How do I train the neural networks?**
 A: Collect data during operation, then run `python train_networks.py`.
 
-**Q: Why is ANFIS using fuzzy-only mode?**
+**Q: Why is Neural-Tuned Fuzzy using fuzzy-only mode?**
 A: Models not found. Train them or check `models/` directory.
 
 **Q: Can I run this without Raspberry Pi?**

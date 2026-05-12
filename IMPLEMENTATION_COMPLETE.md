@@ -14,7 +14,7 @@
 3. `base_controller.py` - Base classes with validation
 4. `conventional_controllers.py` - Improved PI/PID ✅ REAL
 5. `fuzzy_controller.py` - Refactored fuzzy logic ✅ REAL
-6. `anfis_controller.py` - **REAL neural networks** ✅ REAL
+6. `neural_tuned_fuzzy_controller.py` - **REAL neural networks** ✅ REAL
 
 #### **Modern GUI System (4 files)** ✅
 7. `modern_theme.py` - 3 beautiful themes
@@ -55,7 +55,7 @@
 **1. Control Tab** 🎮
 - Smooth target speed slider
 - Motor control buttons (Start/Stop/Reset)
-- Controller selection (PI/PID/Fuzzy/ANFIS)
+- Controller selection (PI/PID/Fuzzy/Neural-Tuned Fuzzy)
 - Pulse animations on buttons
 
 **2. Real-Time Plot Tab** 📊
@@ -225,7 +225,7 @@ python auto_tuner.py
 | PI Controller | ✅ REAL |
 | PID Controller | ✅ REAL |
 | Fuzzy Controller | ✅ REAL |
-| ANFIS Controller | ✅ REAL (Neural Networks) |
+| Neural-Tuned Fuzzy Controller | ✅ REAL (Neural Networks) |
 | **GUI** |
 | Modern Themes | ✅ 3 themes |
 | Animations | ✅ Smooth everywhere |
@@ -284,9 +284,9 @@ python train_networks.py
 # Trains 3 neural networks
 # Takes ~5-10 minutes
 
-# 4. Run GUI with ANFIS
+# 4. Run GUI with Neural-Tuned Fuzzy
 python modern_motor_gui.py
-# Select ANFIS controller
+# Select Neural-Tuned Fuzzy controller
 # Enjoy adaptive neuro-fuzzy control!
 ```
 
@@ -313,7 +313,7 @@ python modern_motor_gui.py
 ```python
 from conventional_controllers import PIDController
 from fuzzy_controller import FuzzyController
-from anfis_controller import ANFISController
+from neural_tuned_fuzzy_controller import NeuralTunedFuzzyController
 
 # Option 1: PID (tuned automatically)
 pid = PIDController(kp=0.6, ki=0.15, kd=0.05)
@@ -323,12 +323,12 @@ pwm = pid.compute_output(target_speed=70, current_speed=50)
 fuzzy = FuzzyController()
 pwm = fuzzy.compute_output(target_speed=70, current_speed=50)
 
-# Option 3: ANFIS (BEST - adaptive)
-anfis = ANFISController()
-pwm = anfis.compute_output(target_speed=70, current_speed=50)
+# Option 3: Neural-Tuned Fuzzy (BEST - adaptive)
+ntf = NeuralTunedFuzzyController()
+pwm = ntf.compute_output(target_speed=70, current_speed=50)
 
 # Check if neural networks are loaded
-status = anfis.get_scaling_factors()
+status = ntf.get_scaling_factors()
 print(f"Using NNs: {status['using_neural_networks']}")
 print(f"Error scale: {status['error_scale']}")
 ```
@@ -381,7 +381,7 @@ dc-motor-neuro-fuzzy/
 │   ├── base_controller.py           # Base classes
 │   ├── conventional_controllers.py  # PI/PID (REAL)
 │   ├── fuzzy_controller.py          # Fuzzy (REAL)
-│   ├── anfis_controller.py          # ANFIS (REAL NNs)
+│   ├── neural_tuned_fuzzy_controller.py          # Neural-Tuned Fuzzy (REAL NNs)
 │   └── nn_models.py                 # Neural network training
 │
 ├── Modern GUI System ✅
@@ -489,7 +489,7 @@ A **world-class DC motor control system** with:
 ✅ **100% REAL algorithms** (no fake implementations)
 ✅ **Beautiful modern GUI** with smooth animations
 ✅ **Automatic tuning** (no manual trial-and-error)
-✅ **Neural network adaptation** (true ANFIS)
+✅ **Neural network adaptation** (true Neural-Tuned Fuzzy)
 ✅ **Real-time monitoring** (live plots and metrics)
 ✅ **Professional infrastructure** (logging, config, tests)
 ✅ **Production ready** (thread-safe, validated, documented)

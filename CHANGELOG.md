@@ -47,7 +47,7 @@ All notable changes to the DC Motor Neuro-Fuzzy Control System.
   - PI Controller (principles, tuning, when to use)
   - PID Controller (complete guide, Ziegler-Nichols)
   - Fuzzy Logic Controller (Mamdani inference)
-  - ANFIS Controller (neural-fuzzy hybrid)
+  - Neural-Tuned Fuzzy Controller (neural-fuzzy hybrid)
   - Anti-Windup Protection (integral saturation)
   - Derivative Filtering (noise reduction)
   - Performance Metrics (overshoot, settling, SS error)
@@ -195,7 +195,7 @@ All notable changes to the DC Motor Neuro-Fuzzy Control System.
 - `base_controller.py` - Base classes with validation
 - `conventional_controllers.py` - Improved PI/PID
 - `fuzzy_controller.py` - Refactored fuzzy logic
-- `anfis_controller.py` - **REAL neural networks** (TensorFlow/Keras)
+- `neural_tuned_fuzzy_controller.py` - **REAL neural networks** (TensorFlow/Keras)
 
 ### Added - Modern GUI System
 - `modern_theme.py` - 3 professional themes

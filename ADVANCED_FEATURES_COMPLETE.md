@@ -100,7 +100,7 @@ All requested advanced plotting and educational features have been successfully 
   1. ✅ PI Controller - Complete explanation
   2. ✅ PID Controller - Industry standard guide
   3. ✅ Fuzzy Controller - Human-like reasoning
-  4. ✅ ANFIS Controller - Neural-fuzzy hybrid
+  4. ✅ Neural-Tuned Fuzzy Controller - Neural-fuzzy hybrid
   5. ✅ Anti-Windup - Integral saturation prevention
   6. ✅ Derivative Filtering - Noise reduction
   7. ✅ Performance Metrics - Evaluation methods
@@ -503,7 +503,7 @@ Users can now:
 │  [📖 PI Controller            ]                             │
 │  [📖 PID Controller           ]                             │
 │  [📖 Fuzzy Logic              ]                             │
-│  [📖 ANFIS                    ]                             │
+│  [📖 Neural-Tuned Fuzzy                    ]                             │
 │  [📖 Anti-Windup              ]                             │
 │  [📖 Derivative Filtering     ]                             │
 │  [📖 Performance Metrics      ]                             │
@@ -620,12 +620,12 @@ Users can now:
 3. **Export your first plot** - Save publication-quality images
 
 ### Short Term
-4. **Compare controllers** - Run PI, PID, Fuzzy, ANFIS side-by-side
+4. **Compare controllers** - Run PI, PID, Fuzzy, Neural-Tuned Fuzzy side-by-side
 5. **Analyze with FFT** - Check stability and oscillations
 6. **Study phase portraits** - Understand convergence behavior
 
 ### Long Term
-7. **Collect training data** - Improve ANFIS performance
+7. **Collect training data** - Improve Neural-Tuned Fuzzy performance
 8. **Optimize parameters** - Use comparison mode to find best settings
 9. **Publish results** - Export professional figures for papers
 
@@ -650,7 +650,7 @@ Users can now:
 
 **Congratulations!** You now have a **COMPLETE, PROFESSIONAL, WORLD-CLASS** DC Motor Control System with:
 
-✅ **100% REAL controllers** (PI, PID, Fuzzy, ANFIS)
+✅ **100% REAL controllers** (PI, PID, Fuzzy, Neural-Tuned Fuzzy)
 ✅ **Beautiful modern GUI** with smooth animations
 ✅ **Advanced plotting** with 7 traces and 4 export formats
 ✅ **Frequency analysis** (FFT)

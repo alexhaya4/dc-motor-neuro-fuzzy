@@ -1,6 +1,32 @@
 # Neuro-Fuzzy DC Motor Control System
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20124685.svg)](https://doi.org/10.5281/zenodo.20124685)
+
 This educational system demonstrates the application of Neuro-Fuzzy control techniques for DC motor speed control. The system allows comparison between conventional controllers (PI, PID) and adaptive Neuro-Fuzzy controllers.
+
+## Citation
+
+If you use this software in your research, please cite it as:
+
+> A. O. Haya, "A Neural-Tuned Fuzzy Controller for DC Motor Speed Regulation: An Open-Source Educational Platform on Raspberry Pi," Zenodo, May 11, 2026, version 1.0.0, doi: 10.5281/zenodo.20124685.
+
+<details>
+<summary>BibTeX</summary>
+
+```bibtex
+@software{haya2026neuraltunefuzzy,
+  author       = {Haya, A. O.},
+  title        = {A Neural-Tuned Fuzzy Controller for DC Motor Speed Regulation: An Open-Source Educational Platform on Raspberry Pi},
+  year         = {2026},
+  month        = may,
+  publisher    = {Zenodo},
+  version      = {1.0.0},
+  doi          = {10.5281/zenodo.20124685},
+  url          = {https://doi.org/10.5281/zenodo.20124685}
+}
+```
+
+</details>
 
 ## Installation
 
@@ -37,7 +63,7 @@ There are two ways to run the application:
   - PI Controller (Proportional-Integral)
   - PID Controller (with derivative filtering and anti-windup)
   - Fuzzy Logic Controller (Mamdani inference)
-  - ANFIS Controller (Adaptive Neuro-Fuzzy with REAL neural networks)
+  - Neural-Tuned Fuzzy Controller (Mamdani fuzzy with neural network scaling)
 
 ### Modern GUI (v2.2)
 - **3 Professional Themes** (Modern Light, Modern Dark, Classic)
@@ -81,7 +107,7 @@ There are two ways to run the application:
   - PI Controller
   - PID Controller
   - Fuzzy Logic Controller
-  - ANFIS Controller
+  - Neural-Tuned Fuzzy Controller
   - Anti-Windup Protection
   - Derivative Filtering
   - Performance Metrics

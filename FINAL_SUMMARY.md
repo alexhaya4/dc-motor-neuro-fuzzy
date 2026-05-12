@@ -33,7 +33,7 @@ output = Kp × error + Ki × ∫(error·dt) + Kd × d(error)/dt
 - ✅ Based on published research papers
 - ✅ Scientifically valid Mamdani system
 
-#### **ANFIS Controller** - ✅ NOW REAL! (Was False Before)
+#### **Neural-Tuned Fuzzy Controller** - ✅ NOW REAL! (Was False Before)
 
 **BEFORE (FAKE):**
 ```python
@@ -60,7 +60,7 @@ self.error_scale = float(self.error_network.predict(input_data)[0][0])
 - ✅ Multi-layer neural networks (input → hidden layers → output)
 - ✅ Learns optimal scaling from training data
 - ✅ Adapts to motor behavior
-- ✅ Scientifically valid ANFIS implementation
+- ✅ Scientifically valid Neural-Tuned Fuzzy implementation
 - ✅ Published in research papers (hybrid fuzzy-neural systems)
 
 ---
@@ -81,7 +81,7 @@ self.error_scale = float(self.error_network.predict(input_data)[0][0])
 3. `base_controller.py` - Base classes with validation
 4. `conventional_controllers.py` - Improved PI/PID
 5. `fuzzy_controller.py` - Refactored fuzzy logic
-6. `anfis_controller.py` - REAL ANFIS with neural networks
+6. `neural_tuned_fuzzy_controller.py` - REAL Neural-Tuned Fuzzy with neural networks
 7. `requirements.txt` - Pinned dependencies
 8. `.env.example` - Configuration template
 
@@ -205,7 +205,7 @@ self.error_scale = float(self.error_network.predict(input_data)[0][0])
 │  │  ○ PI Controller                                   │ │
 │  │  ○ PID Controller                                  │ │
 │  │  ○ Fuzzy Controller                                │ │
-│  │  ● ANFIS ⭐ (Neural-Fuzzy) BEST                    │ │
+│  │  ● Neural-Tuned Fuzzy ⭐ (Neural-Fuzzy) BEST                    │ │
 │  │                                                    │ │
 │  └────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────┘
@@ -323,9 +323,9 @@ controller = FuzzyController()
 from conventional_controllers import PIDController
 controller = PIDController(kp=0.6, ki=0.15, kd=0.05)
 
-# Option 3: ANFIS (BEST - Real Neural Networks!)
-from anfis_controller import ANFISController
-controller = ANFISController()  # Auto-loads trained models
+# Option 3: Neural-Tuned Fuzzy (BEST - Real Neural Networks!)
+from neural_tuned_fuzzy_controller import NeuralTunedFuzzyController
+controller = NeuralTunedFuzzyController()  # Auto-loads trained models
 
 # Compute control output
 pwm = controller.compute_output(target_speed=70, current_speed=50)
@@ -378,7 +378,7 @@ dc-motor-neuro-fuzzy/
 │   ├── base_controller.py             ✅ Base classes
 │   ├── conventional_controllers.py    ✅ PI/PID (improved)
 │   ├── fuzzy_controller.py            ✅ Fuzzy (refactored)
-│   └── anfis_controller.py            ✅ REAL ANFIS
+│   └── neural_tuned_fuzzy_controller.py            ✅ REAL Neural-Tuned Fuzzy
 │
 ├── Modern GUI
 │   ├── modern_theme.py                ✅ Theme system
@@ -442,7 +442,7 @@ dc-motor-neuro-fuzzy/
 ### **Control Theory**
 - PI/PID control (standard algorithms)
 - Fuzzy logic control (Mamdani inference)
-- ANFIS (Adaptive Neuro-Fuzzy Inference Systems)
+- Neural-Tuned Fuzzy (Adaptive Neuro-Fuzzy Inference Systems)
 - Anti-windup techniques
 - Derivative filtering
 
@@ -492,7 +492,7 @@ dc-motor-neuro-fuzzy/
 - **Real Neural Networks**: 3 (error, delta_error, output scaling)
 - **Themes**: 3 (light, dark, classic)
 - **Animated Widgets**: 7
-- **Controllers**: 4 (PI, PID, Fuzzy, ANFIS)
+- **Controllers**: 4 (PI, PID, Fuzzy, Neural-Tuned Fuzzy)
 - **Unit Tests**: 50+ test cases
 
 ---
