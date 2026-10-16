@@ -154,20 +154,25 @@ class TestPIDController:
         for o in outputs:
             assert 0 <= o <= 100
 
-    def test_full_pid_response(self):
-        """Test full PID controller produces meaningful outputs for step input"""
+    def test_full_pid_response(self, monkeypatch):
+        """Check PID terms at a defined sampling interval, independent of CPU speed."""
+        clock = [100.0]
+        monkeypatch.setattr('conventional_controllers.time.monotonic', lambda: clock[0])
         controller = PIDController(kp=0.5, ki=0.1, kd=0.05)
 
         target = 70
         speed = 30
 
-        # With large positive error, controller should output high PWM
+        # Sample at 100 ms intervals instead of using execution-time deltas.
+        clock[0] += 0.1
         output = controller.compute_output(target_speed=target, current_speed=speed)
-        assert output > 0  # Positive error -> positive output
+        assert output == pytest.approx(22.4)
 
         # As speed approaches target, output should decrease
+        clock[0] += 0.1
         output_near = controller.compute_output(target_speed=target, current_speed=65)
-        assert output_near < output  # Smaller error -> smaller output
+        assert output_near == pytest.approx(3.0)
+        assert output_near < output
 
 
 class TestFuzzyController:
