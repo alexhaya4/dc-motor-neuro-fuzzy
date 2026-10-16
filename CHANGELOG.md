@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Restore the original CodeQL analysis identity and its security-and-quality queries so findings from the earlier configuration are evaluated against current source.
+- Combine the positive-output and PWM-range test assertions to remove a redundant comparison without reducing coverage.
+- Retain downloadable CodeQL reports and fail the scan job on reported findings, including quality notes.
+
 ## [2.0.0] - 2026-10-17
 
 This release repairs the maintained motor-control and training paths, updates dependencies, and consolidates the repository around the working application. It is a source release for Python 3.11 and 3.12.

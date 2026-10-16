@@ -281,8 +281,7 @@ class TestControllerComparison:
         # All controllers should produce positive output for positive error
         for name, controller in controllers.items():
             output = controller.compute_output(target_speed=target, current_speed=speed)
-            assert output > 0, f"{name} controller should produce positive output for positive error"
-            assert 0 <= output <= 100, f"{name} controller output {output} out of valid PWM range"
+            assert 0 < output <= 100, f"{name} controller output {output} must be positive and within the PWM range"
 
     def test_steady_state_accuracy(self):
         """Compare steady-state accuracy"""

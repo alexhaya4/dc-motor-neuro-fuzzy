@@ -2,6 +2,10 @@
 
 Report vulnerabilities through [GitHub private vulnerability reporting](https://github.com/alexhaya4/dc-motor-neuro-fuzzy/security/advisories).
 
+## Code scanning
+
+CodeQL runs the security-and-quality query suite on pushes, pull requests and a weekly schedule. The analysis category remains stable so new scans update earlier findings. Any reported finding fails the scan job; SARIF reports are available as the `codeql-results` Actions artifact.
+
 ## Dependencies
 
 Install the hash-locked requirements for the intended environment. Runtime and GPIO locks are checked with `pip-audit` in CI; findings fail the job. Update the input files and regenerate the corresponding lock files together. A clean dependency audit covers known package advisories at the time of the check.

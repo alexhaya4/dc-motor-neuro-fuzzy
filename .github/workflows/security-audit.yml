@@ -56,7 +56,7 @@ jobs:
           path: coverage.xml
           if-no-files-found: ignore
 
-  codeql:
+  codeql-analysis:
     name: CodeQL
     runs-on: ubuntu-latest
     permissions:
@@ -69,11 +69,71 @@ jobs:
         with:
           languages: python
           build-mode: none
+          queries: security-and-quality
       - uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
+        with:
+          category: .github/workflows/security-audit.yml:codeql-analysis
+          output: codeql-results
+      - name: Check security and quality findings
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          reports = list(Path('codeql-results').glob('*.sarif'))
+          if not reports:
+              raise SystemExit('CodeQL did not produce a SARIF report.')
+          count = 0
+          for report in reports:
+              for run in json.loads(report.read_text())['runs']:
+                  for result in run.get('results', []):
+                      count += 1
+                      print(json.dumps(result, sort_keys=True))
+          print(f'CodeQL security and quality findings: {count}')
+          if count:
+              raise SystemExit('Resolve CodeQL findings before releasing.')
+          PY
+      - name: Verify GitHub alert status
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.parse
+          import urllib.request
+
+          endpoint = os.environ['GITHUB_API_URL'] + '/repos/' + os.environ['GITHUB_REPOSITORY'] + '/code-scanning/alerts'
+          count = 0
+          page = 1
+          while True:
+              query = urllib.parse.urlencode({'state': 'open', 'ref': os.environ['GITHUB_REF'], 'per_page': 100, 'page': page})
+              request = urllib.request.Request(endpoint + '?' + query, headers={
+                  'Accept': 'application/vnd.github+json',
+                  'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+              })
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  alerts = json.load(response)
+              count += len(alerts)
+              if len(alerts) < 100:
+                  break
+              page += 1
+          print(f'Open code-scanning alerts on main: {count}')
+          if count:
+              raise SystemExit('GitHub still reports open alerts; review the scan configurations.')
+          PY
+      - name: Upload CodeQL report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: codeql-results
+          path: codeql-results/*.sarif
+          if-no-files-found: error
 
   release:
     name: Publish versioned release
-    needs: [tests, codeql]
+    needs: [tests, codeql-analysis]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 5
