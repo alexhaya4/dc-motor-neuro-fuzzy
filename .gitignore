@@ -36,6 +36,7 @@ logs/
 
 # Except icon
 !icon.png
+!docs/media/*.png
 
 # Data files
 *.csv

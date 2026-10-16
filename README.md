@@ -1,15 +1,63 @@
 # Neuro-Fuzzy DC Motor Control
 
+**Four control strategies. One measured feedback loop.**
+
 [![Software checks](https://github.com/alexhaya4/dc-motor-neuro-fuzzy/actions/workflows/security-audit.yml/badge.svg)](https://github.com/alexhaya4/dc-motor-neuro-fuzzy/actions/workflows/security-audit.yml)
-[MIT license](LICENSE)
+[![Python 3.11 and 3.12](https://img.shields.io/badge/Python-3.11%20%7C%203.12-3776AB?logo=python&logoColor=white)](#quick-start)
+[![Code license: MIT](https://img.shields.io/badge/Code-MIT-176B50)](LICENSE)
+[![Paper DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20124685.svg)](https://doi.org/10.5281/zenodo.20124685)
 
-A Python application for studying DC motor-speed control with PI, PID, Mamdani fuzzy and neural-tuned fuzzy controllers. The maintained hardware path uses a Raspberry Pi, an L298N driver and an IR pulse sensor. The desktop interface displays measured speed and commanded PWM.
+A Python control-engineering workbench for studying DC motor speed regulation on a Raspberry Pi. Compare PI, PID, Mamdani fuzzy logic and neural-tuned fuzzy control through a PyQt5 interface, using measured speed feedback and explicit PWM commands.
 
-**Validation scope:** software tests cover controller behavior, real TensorFlow training and model round trips, GPIO protocol handling, watchdog behavior and offline Qt startup. GPIO tests use test adapters; they do not validate a physical motor rig. Raspberry Pi installation, sensor calibration and controller tuning must be checked on the target hardware.
+Built by [Alex Odhiambo Haya](https://github.com/alexhaya4). The accompanying [research preprint](https://doi.org/10.5281/zenodo.20124685) explains the educational platform and its controller architecture.
 
-## Install and inspect without hardware
+[Quick start](#quick-start) · [Hardware setup](docs/USAGE.md#raspberry-pi-setup) · [Training](docs/USAGE.md#collect-data-and-train) · [Contributing](CONTRIBUTING.md) · [Citation](#research-and-citation) · [Licensing](#licensing)
 
-Use Python 3.11 or 3.12 on a 64-bit system.
+## What it does
+
+| Controller | Implementation | Use |
+| --- | --- | --- |
+| PI | Proportional and integral feedback | Establish a conventional baseline. |
+| PID | Proportional, integral and derivative feedback | Study transient response and tuning. |
+| Fuzzy | Mamdani inference over error and change in error | Explore rule-based nonlinear control. |
+| Neural-tuned fuzzy | Three Keras networks adjust fuzzy input and output scaling | Study learned scaling alongside the fixed fuzzy baseline. |
+
+The maintained launcher displays speed, error, PWM output and available performance metrics. It supports controller switching, configuration and logging. Collection and relay-tuning commands use the hardware path directly.
+
+**Current status:** software checks cover the control loop, model training, model loading, GPIO protocol handling and offline interface startup. Physical motor validation and quantitative controller comparisons remain outstanding for this maintenance revision. No controller is presented as the measured best performer.
+
+## Inside the feedback loop
+
+![Conceptual animation of a setpoint passing through the controller, PWM driver and motor, with measured speed returning through the sensor to the controller.](docs/media/control-loop.gif)
+
+*Conceptual signal flow. This animation is an architecture illustration, not a motor recording or performance result.*
+
+The sensor worker converts debounced pulses into speed using elapsed time and configured pulses per revolution. Control calculations use timestamped feedback. The output path rejects stale results, while a separate write watchdog disables PWM if control writes stop.
+
+For neural tuning, the networks predict scaling factors from target and measured speed. The fuzzy rule base still computes the control action:
+
+```mermaid
+flowchart TB
+    input["Target and measured speed"] --> error["Error-scale network"]
+    input --> delta["Change-in-error-scale network"]
+    input --> output["Output-scale network"]
+    error --> fuzzy["Scale inputs and run Mamdani rules"]
+    delta --> fuzzy
+    fuzzy --> command["Scale output and bound PWM"]
+    output --> command
+```
+
+Without a complete set of requested, checksum-verified models, the application reports **fuzzy-only mode**. Neural scaling factors are bounded, and invalid controller output is rejected.
+
+## Interface
+
+![Actual application in offline mode, showing disconnected hardware, unavailable measurements, controller selection and disabled motor start.](docs/media/interface-offline.png)
+
+*Actual offline interface. No GPIO is opened, no speed readings are generated, and motor start is disabled. The fuzzy-only indicator shows that trained models are absent.*
+
+## Quick start
+
+Use **Python 3.11 or 3.12 on a 64-bit system**. The desktop interface needs a graphical session; Linux and WSL with WSLg are suitable environments for inspection.
 
 ```bash
 git clone https://github.com/alexhaya4/dc-motor-neuro-fuzzy.git
@@ -18,57 +66,55 @@ cd dc-motor-neuro-fuzzy
 ./run.sh --offline
 ```
 
-Offline inspection opens the interface with motor controls disabled. It does not open GPIO or generate speed readings. `python dc_motor_gui.py` delegates to the same maintained launcher.
-
-## Run on a Raspberry Pi
-
-The GPIO backend targets Raspberry Pi 3/4 with 64-bit Raspberry Pi OS. Raspberry Pi 5 support is not established. On ARM, Qt comes from the operating system; the installer creates a virtual environment that can access it.
+If your default Python differs, select a supported interpreter explicitly:
 
 ```bash
-sudo apt install python3-venv python3-dev python3-pyqt5 build-essential
-./install.sh --hardware
-cp .env.example .env
+PYTHON=python3.12 ./install.sh
 ```
 
-Review `.env` before enabling the motor. Set the measured maximum RPM, sensor pulses per revolution, debounce interval, PWM frequency and controller gains for the actual rig. The supplied values are configuration defaults, not a calibration or a validated tuning result.
+To operate a connected motor, follow the [Raspberry Pi setup](docs/USAGE.md#raspberry-pi-setup). The maintained GPIO backend targets Raspberry Pi 3/4 with 64-bit Raspberry Pi OS and Python 3.11 or 3.12. Raspberry Pi 5 support is not established.
 
-| Connection | Default BCM GPIO |
-| --- | ---: |
-| L298N IN1 | 17 |
-| L298N IN2 | 18 |
-| L298N ENA | 12 |
-| IR sensor output | 23 |
+## Data collection and training
 
-The driver and motor require an appropriate power supply and a common reference with the Pi. Verify sensor-output voltage compatibility with the Pi before connection. The maintained path uses one sensor; the second configured pin is reserved.
-
-```bash
-./run.sh
-```
-
-Output starts at zero. Enabling requires a fresh sensor sample. Stop, stale feedback, controller replacement and shutdown disable output. An independent software watchdog disables output when PWM writes stall. Use a physical disconnect as well; software tests do not establish electrical safety or real-time guarantees.
-
-## Collect data and train
+After configuring and checking the physical rig:
 
 ```bash
 .venv/bin/python improved_data_collection.py
 .venv/bin/python train_networks.py --data data/training_data.json --models models
 ```
 
-Collection uses measured GPIO feedback and actual PWM writes. Scaling-factor labels are heuristic and identified in the dataset metadata. They are not measured optimal gains or evidence that neural tuning improves control. The collector writes the same schema consumed by the trainer.
+The collector writes measured feedback and **heuristic scaling-factor labels** in the trainer's schema. Those labels are not experimentally optimized gains. The relay-tuning command produces candidate PI/PID gains separately; it does not supply validated neural training targets.
 
-Training stores `error_scale.keras`, `delta_error_scale.keras` and `output_scale.keras` with SHA-256 sidecars. Input normalization is part of newly trained models, and the controller uses the trainer's filenames and output scaling. Checksum-verified legacy `.h5` files can also load. Only load trusted models; sidecars check file consistency, not authorship. Without a complete set of requested models, the interface explicitly reports fuzzy-only operation.
+Training produces `error_scale.keras`, `delta_error_scale.keras` and `output_scale.keras`, each with a SHA-256 sidecar. Normalization is embedded in newly trained models. Only load trusted model files: a checksum detects file changes and does not establish who created a model.
 
-`data_collection.py` delegates to the maintained collector. Its Python `DataCollector` alias now takes `config` and `hardware`, replacing the old positional GPIO/PWM constructor. The older `NeuralFuzzyController` and `NeuroFuzzyController` import names delegate to the maintained controller; heuristic functions no longer masquerade as neural networks.
+See [collection, training and relay tuning](docs/USAGE.md#collect-data-and-train) for the operational details and compatibility notes.
 
-## Relay tuning
+## Validation and limits
 
-```bash
-.venv/bin/python auto_tuner.py
-```
+| Area | Evidence provided | Still required |
+| --- | --- | --- |
+| Controller logic | Regression tests for bounds, zero targets and controller behavior | Measurements across motor speeds and loads |
+| Runtime and GPIO | Test adapters exercise stale feedback, output races, watchdogs and shutdown | Physical sensor, PWM and disconnect checks |
+| Neural models | Actual TensorFlow training and save/load tests | Evaluation on separate recording sessions |
+| Interface | Offline Qt startup and plotting checks | Inspection on the target Pi display |
+| Dependencies | Hash-locked installs on Python 3.11/3.12, vulnerability audits and CodeQL | Continued dependency and platform maintenance |
 
-This operates the connected motor. It derives candidate Ziegler-Nichols gains from observed relay crossings, always disables output on exit, and fails if usable oscillations are absent. Candidate gains still need validation for the motor, load and sampling interval. Saving gains updates `.env`; restart the application to apply them.
+Stop, stale feedback, controller replacement and shutdown disable commanded output. The independent watchdog is software protection, not a hardware emergency stop or a real-time guarantee. Provide a physical power disconnect and validate the driver, supply and sensor voltage before running a motor.
 
-Performance metrics distinguish missing data from zero error. Settling requires an observed in-band tail lasting at least one second, and resets after an excursion or target change. A composite performance score is not reported because no validated scoring protocol is defined.
+Metrics report missing observations as unavailable. Settling requires a continuous observed in-band tail; a single threshold crossing does not establish settling. `integration_example.py` is a mathematical simulation, separate from measured hardware operation.
+
+## Project guide
+
+| Location | Responsibility |
+| --- | --- |
+| [`modern_motor_gui.py`](modern_motor_gui.py) | Maintained application entry point |
+| [`control_runtime.py`](control_runtime.py), [`motor_hardware.py`](motor_hardware.py) | Timestamped control, sensor feedback and GPIO output |
+| [`base_controller.py`](base_controller.py), [`conventional_controllers.py`](conventional_controllers.py), [`neural_tuned_fuzzy_controller.py`](neural_tuned_fuzzy_controller.py) | Controller implementations |
+| [`nn_models.py`](nn_models.py), [`train_networks.py`](train_networks.py) | Scaling networks, training and model persistence |
+| [`improved_data_collection.py`](improved_data_collection.py), [`auto_tuner.py`](auto_tuner.py) | Hardware collection and candidate relay tuning |
+| [`performance_metrics.py`](performance_metrics.py), [`tests/`](tests/) | Observation-based metrics and software verification |
+
+Older launcher and controller names remain compatibility adapters. Historical implementation-summary documents are not the current operating guide. Use this README, [usage guide](docs/USAGE.md), [contribution guide](CONTRIBUTING.md) and [changelog](CHANGELOG.md) for the maintained path.
 
 ## Development
 
@@ -76,49 +122,44 @@ Performance metrics distinguish missing data from zero error. Settling requires 
 .venv/bin/python -m pip install --require-hashes -r requirements-dev.txt
 .venv/bin/python -m pytest
 .venv/bin/python -m ruff check --select E9,F63,F7,F82 .
-.venv/bin/python -m pip_audit --disable-pip --require-hashes -r requirements.txt
 ```
 
-CI tests Python 3.11 and 3.12, runs the Qt checks offscreen, audits both runtime and GPIO dependency locks, and runs CodeQL. Test, lint and audit failures fail the workflow. Plain `pytest` collects only `tests/`; root-level hardware diagnostic scripts are manual utilities.
+CI tests Python 3.11 and 3.12, audits runtime and Pi dependency locks, and runs CodeQL. Failures fail the workflow. See [CONTRIBUTING.md](CONTRIBUTING.md) for dependency updates, checks and hardware-test boundaries. Report vulnerabilities through the process in [SECURITY.md](SECURITY.md).
 
-Runtime, development and Pi dependencies have separate hash-locked files. Direct versions are maintained in the corresponding `.in` files. NumPy and SciPy pins retain Python 3.11 compatibility. Regenerate each lock after changing its input:
+## Research and citation
 
-```bash
-uv pip compile requirements.in --python-version 3.11 --universal --generate-hashes -o requirements.txt
-uv pip compile requirements-dev.in --python-version 3.11 --universal --generate-hashes -o requirements-dev.txt
-uv pip compile requirements-pi.in --python-version 3.11 --universal --generate-hashes -o requirements-pi.txt
-```
+**Alex Odhiambo Haya.** *A Neural-Tuned Fuzzy Controller for DC Motor Speed Regulation: An Open-Source Educational Platform on Raspberry Pi.* Zenodo preprint, version 1.0.0, 11 May 2026. [doi:10.5281/zenodo.20124685](https://doi.org/10.5281/zenodo.20124685).
 
-`integration_example.py` is a separate mathematical simulation example, not a hardware recording. Advanced plotting and educational modules are separate components; the maintained launcher does not claim that every historical prototype is integrated. Earlier implementation-summary documents describe historical work and may not match the current entry points.
-
-## Copy source to a Pi
-
-```bash
-./deploy_to_pi.sh USER@HOST
-```
-
-Replace `USER@HOST` with the Pi's SSH address. The script copies source to `dc-motor-neuro-fuzzy/`; it does not start a motor or install packages remotely. It excludes local environments, `.env`, models, datasets and logs. Run `./install.sh --hardware` on the Pi afterward. Windows users can invoke the accompanying batch wrapper through WSL.
-
-## Citation
-
-If you use this software in your research, please cite it as:
-
-> A. O. Haya, "A Neural-Tuned Fuzzy Controller for DC Motor Speed Regulation: An Open-Source Educational Platform on Raspberry Pi," Zenodo, May 11, 2026, version 1.0.0, doi: 10.5281/zenodo.20124685.
+The archived preprint describes the earlier platform. This repository's maintained code has since changed; the archived paper does not certify the current revision or establish comparative performance. Cite the paper for the research description and record the exact Git commit used in an experiment.
 
 <details>
 <summary>BibTeX</summary>
 
 ```bibtex
-@software{haya2026neuraltunefuzzy,
-  author       = {Haya, A. O.},
-  title        = {A Neural-Tuned Fuzzy Controller for DC Motor Speed Regulation: An Open-Source Educational Platform on Raspberry Pi},
+@misc{haya2026neuralfuzzy,
+  author       = {Haya, Alex Odhiambo},
+  title        = {A Neural-Tuned Fuzzy Controller for DC Motor Speed Regulation:
+                  An Open-Source Educational Platform on Raspberry Pi},
   year         = {2026},
   month        = may,
   publisher    = {Zenodo},
   version      = {1.0.0},
   doi          = {10.5281/zenodo.20124685},
-  url          = {https://doi.org/10.5281/zenodo.20124685}
+  url          = {https://doi.org/10.5281/zenodo.20124685},
+  note         = {Preprint}
 }
 ```
 
 </details>
+
+GitHub's **Cite this repository** action uses [`CITATION.cff`](CITATION.cff).
+
+## Licensing
+
+| Material | Terms |
+| --- | --- |
+| Original repository code, documentation and new README media | [MIT](LICENSE); retain the copyright and permission notice when redistributing |
+| The linked Zenodo preprint, including its figures | [CC BY 4.0](LICENSES/CC-BY-4.0.txt), as declared by the [publication record](https://zenodo.org/records/20124685); attribute the author, identify the source, link the license and indicate changes |
+| Third-party packages and bundled components | Their respective upstream licenses; see [third-party notices](THIRD_PARTY_NOTICES.md) |
+
+The paper is linked from Zenodo rather than copied into the repository. PyQt5 is offered under GPLv3 or a Riverbank commercial license; the repository's MIT license does not replace the terms of dependencies. See the [license scope](LICENSES/README.md) before redistributing a packaged application.

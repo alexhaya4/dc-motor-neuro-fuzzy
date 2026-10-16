@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "Please cite the accompanying preprint and record the exact Git commit used for software experiments."
+type: software
+title: "Neuro-Fuzzy DC Motor Control"
+authors:
+  - family-names: Haya
+    given-names: Alex Odhiambo
+    orcid: "https://orcid.org/0009-0002-0402-9313"
+repository-code: "https://github.com/alexhaya4/dc-motor-neuro-fuzzy"
+url: "https://github.com/alexhaya4/dc-motor-neuro-fuzzy"
+license: MIT
+preferred-citation:
+  type: article
+  title: "A Neural-Tuned Fuzzy Controller for DC Motor Speed Regulation: An Open-Source Educational Platform on Raspberry Pi"
+  authors:
+    - family-names: Haya
+      given-names: Alex Odhiambo
+      orcid: "https://orcid.org/0009-0002-0402-9313"
+  journal: "Zenodo (preprint)"
+  date-published: 2026-05-11
+  doi: "10.5281/zenodo.20124685"
+  url: "https://doi.org/10.5281/zenodo.20124685"
