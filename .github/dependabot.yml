@@ -1,5 +1,7 @@
 version: 2
 updates:
+  # Resolve pip-compile updates against the Python 3.11 baseline in .python-version.
+  # CI also verifies the resulting hash-locked dependencies on Python 3.12.
   - package-ecosystem: pip
     directory: /
     schedule:
