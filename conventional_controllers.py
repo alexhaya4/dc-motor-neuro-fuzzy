@@ -3,6 +3,7 @@ Conventional PID Controllers with proper validation and type hints
 """
 
 import time
+import math
 from typing import Optional
 
 from base_controller import BaseController
@@ -34,10 +35,11 @@ class PIController(BaseController):
         self.kp = kp if kp is not None else config.controller.pi_kp
         self.ki = ki if ki is not None else config.controller.pi_ki
         self.integral_limit = integral_limit if integral_limit is not None else config.controller.pi_integral_limit
+        self._validate_parameters()
 
         # Controller state
         self.integral = 0.0
-        self.prev_time = time.time()
+        self.prev_time = time.monotonic()
 
         self.logger.info(f"PI Controller initialized: Kp={self.kp}, Ki={self.ki}")
 
@@ -53,7 +55,7 @@ class PIController(BaseController):
             PWM duty cycle (0-100%)
         """
         # Time delta
-        current_time = time.time()
+        current_time = time.monotonic()
         dt = current_time - self.prev_time
         self.prev_time = current_time
 
@@ -87,7 +89,13 @@ class PIController(BaseController):
         """Reset PI controller state"""
         super().reset()
         self.integral = 0.0
-        self.prev_time = time.time()
+        self.prev_time = time.monotonic()
+
+    def _validate_parameters(self):
+        for name in ('kp', 'ki', 'integral_limit'):
+            value = getattr(self, name)
+            if not math.isfinite(value) or value < 0 or (name == 'integral_limit' and value == 0):
+                raise ValueError(f"{name} must be finite and {'positive' if name == 'integral_limit' else 'nonnegative'}")
 
 
 class PIDController(BaseController):
@@ -116,10 +124,13 @@ class PIDController(BaseController):
         self.ki = ki if ki is not None else config.controller.pid_ki
         self.kd = kd if kd is not None else config.controller.pid_kd
         self.integral_limit = integral_limit if integral_limit is not None else config.controller.pid_integral_limit
+        PIController._validate_parameters(self)
+        if not math.isfinite(self.kd) or self.kd < 0:
+            raise ValueError('kd must be finite and nonnegative')
 
         # Controller state
         self.integral = 0.0
-        self.prev_time = time.time()
+        self.prev_time = time.monotonic()
         self.derivative = 0.0
 
         # Derivative filtering (exponential moving average)
@@ -139,7 +150,7 @@ class PIDController(BaseController):
             PWM duty cycle (0-100%)
         """
         # Time delta
-        current_time = time.time()
+        current_time = time.monotonic()
         dt = current_time - self.prev_time
         self.prev_time = current_time
 
@@ -182,4 +193,4 @@ class PIDController(BaseController):
         super().reset()
         self.integral = 0.0
         self.derivative = 0.0
-        self.prev_time = time.time()
+        self.prev_time = time.monotonic()

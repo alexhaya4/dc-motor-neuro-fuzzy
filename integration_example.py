@@ -38,7 +38,7 @@ class EnhancedMotorGUI(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("DC Motor Control System v2.2 - Advanced Features")
+        self.setWindowTitle("DC Motor Controller Study - Mathematical Simulation")
         self.setMinimumSize(1200, 800)
 
         # Controllers

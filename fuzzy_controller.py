@@ -17,7 +17,7 @@ class FuzzyController(FuzzyControllerBase):
     The fuzzy system uses:
     - 5 input fuzzy sets (NB, NS, ZE, PS, PB)
     - 5 output fuzzy sets (VL, LO, ME, HI, VH)
-    - 12+ fuzzy rules based on control theory
+    - 25 explicit error/delta-error rules
     """
 
     def __init__(self):

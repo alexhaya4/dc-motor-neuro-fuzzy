@@ -1,0 +1,3 @@
+-r requirements.in
+# Raspberry Pi 3/4 GPIO backend. Qt is supplied by the OS on ARM.
+RPi.GPIO==0.7.1

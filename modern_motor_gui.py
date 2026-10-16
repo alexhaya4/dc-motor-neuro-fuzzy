@@ -5,7 +5,7 @@ Complete implementation with all improvements integrated
 
 import sys
 import time
-import random  # Import at module level, not in hot loop
+import math
 import numpy as np
 from collections import deque
 from queue import Queue, Empty
@@ -16,12 +16,10 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QLabel, QGroupBox, QTabWidget,
                              QGridLayout, QTextEdit, QMessageBox, QComboBox,
                              QRadioButton, QButtonGroup, QCheckBox, QFileDialog,
-                             QSpinBox, QDoubleSpinBox)
+                             QSpinBox, QDoubleSpinBox, QScrollArea, QFrame)
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QThread
 from PyQt5.QtGui import QFont
 
-import matplotlib
-matplotlib.use('Qt5Agg')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
@@ -56,303 +54,11 @@ from constants import (
     SPEED_SENSOR_SLEEP_MICROSEC
 )
 
-# Conditional GPIO import
-if is_raspberry_pi():
-    import RPi.GPIO as GPIO
-else:
-    # Mock GPIO for development
-    class MockGPIO:
-        BCM = 0
-        OUT = 0
-        IN = 1
-        HIGH = 1
-        LOW = 0
-
-        @staticmethod
-        def setmode(mode): pass
-        @staticmethod
-        def setup(pin, mode): pass
-        @staticmethod
-        def output(pin, state): pass
-        @staticmethod
-        def input(pin): return 0
-        @staticmethod
-        def setwarnings(flag): pass
-
-        class PWM:
-            def __init__(self, pin, freq): pass
-            def start(self, duty): pass
-            def ChangeDutyCycle(self, duty): pass
-            def stop(self): pass
-
-    GPIO = MockGPIO()
-
+from motor_hardware import MotorHardware
+from control_runtime import ThreadSafeSpeedSensor, ThreadSafeController
+from performance_metrics import PerformanceMetrics
 
 logger = get_logger(__name__)
-
-
-class PerformanceMetrics:
-    """Calculate and track controller performance metrics"""
-
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        """Reset all metrics"""
-        self.start_time = time.time()
-        self.target_reached_time = None
-        self.max_value = 0
-        self.min_value = 100
-        self.steady_state_samples = []
-
-    def update(self, target: float, actual: float):
-        """Update metrics with new data point"""
-        self.max_value = max(self.max_value, actual)
-        self.min_value = min(self.min_value, actual)
-
-        # Check if reached target (within tolerance)
-        if self.target_reached_time is None:
-            tolerance = target * (SETTLING_TIME_TOLERANCE_PERCENT / 100.0)
-            if abs(actual - target) <= tolerance:
-                self.target_reached_time = time.time()
-
-        # Collect steady-state samples (after defined time)
-        if time.time() - self.start_time > STEADY_STATE_START_TIME_SEC:
-            self.steady_state_samples.append(actual - target)
-            if len(self.steady_state_samples) > STEADY_STATE_SAMPLES:
-                self.steady_state_samples.pop(0)
-
-    def calculate(self, target: float) -> Dict[str, float]:
-        """Calculate final metrics"""
-        overshoot = max(0, (self.max_value - target) / target * 100) if target > 0 else 0
-
-        settling_time = self.target_reached_time - self.start_time if self.target_reached_time else 0
-
-        ss_error = np.mean(np.abs(self.steady_state_samples)) if self.steady_state_samples else 0
-
-        # Calculate score using constants
-        score = MAX_PERFORMANCE_SCORE
-        score -= min(overshoot * OVERSHOOT_PENALTY_MULTIPLIER, OVERSHOOT_MAX_PENALTY)
-        score -= min(settling_time * SETTLING_TIME_PENALTY_MULTIPLIER, SETTLING_TIME_MAX_PENALTY)
-        score -= min(ss_error * STEADY_STATE_ERROR_PENALTY_MULTIPLIER, STEADY_STATE_ERROR_MAX_PENALTY)
-        score = max(0, score)
-
-        return {
-            'overshoot': overshoot,
-            'settling_time': settling_time,
-            'ss_error': ss_error,
-            'score': score
-        }
-
-
-class ThreadSafeSpeedSensor(QThread):
-    """Thread-safe speed sensor with proper synchronization"""
-
-    speed_updated = pyqtSignal(float)
-
-    def __init__(self, config):
-        super().__init__()
-        self.config = config
-        self.running = True
-        self.lock = Lock()
-
-        # Smoothing buffer
-        self.rpm_history = deque(maxlen=SPEED_SENSOR_SMOOTHING_SAMPLES)
-
-        logger.info("Speed sensor thread initialized")
-
-    def run(self):
-        """Main sensor loop"""
-        while self.running:
-            try:
-                raw_rpm = self.measure_speed()
-
-                with self.lock:
-                    self.rpm_history.append(raw_rpm)
-                    smoothed_rpm = sum(self.rpm_history) / len(self.rpm_history)
-
-                self.speed_updated.emit(smoothed_rpm)
-                time.sleep(SENSOR_POLL_INTERVAL_SEC)
-
-            except (ValueError, TypeError, IOError) as e:
-                logger.error(f"Speed sensor error: {e}")
-                time.sleep(0.5)
-
-    def measure_speed(self, duration: float = SPEED_MEASUREMENT_DURATION_SEC) -> float:
-        """Measure speed by counting IR sensor pulses"""
-        if not is_raspberry_pi():
-            # Simulate speed for development (random imported at module level)
-            return random.uniform(40, 60)
-
-        pulse_count = 0
-        last_state = GPIO.input(self.config.gpio.ir_sensor_pin)
-        start_time = time.time()
-        end_time = start_time + duration
-
-        while time.time() < end_time:
-            current_state = GPIO.input(self.config.gpio.ir_sensor_pin)
-            if current_state == 0 and last_state == 1:
-                pulse_count += 1
-            last_state = current_state
-            time.sleep(SPEED_SENSOR_SLEEP_MICROSEC)
-
-        # Calculate RPM
-        pulses_per_rev = self.config.motor.pulses_per_revolution
-        rpm = (pulse_count / pulses_per_rev) * (60.0 / duration)
-
-        # Convert to 0-100 scale
-        max_rpm = self.config.motor.max_rpm
-        speed_percent = min(100, (rpm / max_rpm) * 100)
-
-        return speed_percent
-
-    def stop(self):
-        """Stop the sensor thread"""
-        self.running = False
-        logger.info("Speed sensor thread stopped")
-
-
-class ThreadSafeController(QThread):
-    """Thread-safe controller with Queue-based communication and watchdog"""
-
-    pwm_updated = pyqtSignal(float)
-    metrics_updated = pyqtSignal(dict)
-
-    def __init__(self, controller, config, motor_pwm=None):
-        super().__init__()
-        self.controller = controller
-        self.config = config
-        self.motor_pwm = motor_pwm  # Store PWM instance instead of global
-        self.running = True
-
-        # Thread-safe communication
-        self.command_queue = Queue()
-        self.state_lock = Lock()
-
-        # State
-        self.target_speed = 0.0
-        self.current_speed = 0.0
-        self.motor_enabled = False
-
-        # Performance tracking
-        self.metrics = PerformanceMetrics()
-
-        # Watchdog timer for safety
-        self.last_update_time = time.time()
-        self.watchdog_timeout = WATCHDOG_TIMEOUT_SEC
-
-        logger.info(f"Controller thread initialized: {controller.__class__.__name__}")
-
-    def run(self):
-        """Main control loop with watchdog"""
-        while self.running:
-            try:
-                # Get commands from queue (non-blocking)
-                try:
-                    cmd = self.command_queue.get(timeout=0.01)
-                    self._process_command(cmd)
-                except Empty:
-                    pass
-
-                # Check watchdog timer
-                if self.motor_enabled:
-                    elapsed = time.time() - self.last_update_time
-                    if elapsed > self.watchdog_timeout:
-                        logger.warning(f"Watchdog timeout! No update in {elapsed:.2f}s. Stopping motor.")
-                        self.motor_enabled = False
-                        if self.motor_pwm and is_raspberry_pi():
-                            self.motor_pwm.ChangeDutyCycle(0)
-
-                # Compute control output
-                if self.motor_enabled:
-                    with self.state_lock:
-                        target = self.target_speed
-                        current = self.current_speed
-
-                    # Compute PWM
-                    pwm = self.controller.compute_output(target, current)
-
-                    # Apply to motor
-                    if self.motor_pwm and is_raspberry_pi():
-                        self.motor_pwm.ChangeDutyCycle(pwm)
-
-                    # Update metrics
-                    self.metrics.update(target, current)
-
-                    # Emit signals
-                    self.pwm_updated.emit(pwm)
-
-                    # Reset watchdog
-                    self.last_update_time = time.time()
-
-                time.sleep(CONTROL_LOOP_INTERVAL_SEC)
-
-            except (ValueError, TypeError, RuntimeError) as e:
-                logger.error(f"Controller error: {e}")
-                time.sleep(0.1)
-
-    def _process_command(self, cmd: Dict[str, Any]):
-        """Process command from queue"""
-        cmd_type = cmd.get('type')
-
-        if cmd_type == 'set_target':
-            with self.state_lock:
-                self.target_speed = cmd['value']
-            logger.debug(f"Target speed set to {cmd['value']}")
-
-        elif cmd_type == 'set_current':
-            with self.state_lock:
-                self.current_speed = cmd['value']
-
-        elif cmd_type == 'enable_motor':
-            self.motor_enabled = True
-            self.metrics.reset()
-            logger.info("Motor enabled")
-
-        elif cmd_type == 'disable_motor':
-            self.motor_enabled = False
-            if self.motor_pwm and is_raspberry_pi():
-                self.motor_pwm.ChangeDutyCycle(0)
-            logger.info("Motor disabled")
-
-        elif cmd_type == 'reset':
-            self.controller.reset()
-            self.metrics.reset()
-            logger.info("Controller reset")
-
-        elif cmd_type == 'get_metrics':
-            metrics = self.metrics.calculate(self.target_speed)
-            self.metrics_updated.emit(metrics)
-
-    def set_target_speed(self, speed: float):
-        """Thread-safe method to set target speed"""
-        self.command_queue.put({'type': 'set_target', 'value': speed})
-
-    def update_current_speed(self, speed: float):
-        """Thread-safe method to update current speed"""
-        self.command_queue.put({'type': 'set_current', 'value': speed})
-
-    def enable_motor(self):
-        """Thread-safe method to enable motor"""
-        self.command_queue.put({'type': 'enable_motor'})
-
-    def disable_motor(self):
-        """Thread-safe method to disable motor"""
-        self.command_queue.put({'type': 'disable_motor'})
-
-    def reset_controller(self):
-        """Thread-safe method to reset controller"""
-        self.command_queue.put({'type': 'reset'})
-
-    def request_metrics(self):
-        """Request performance metrics calculation"""
-        self.command_queue.put({'type': 'get_metrics'})
-
-    def stop(self):
-        """Stop the controller thread"""
-        self.running = False
-        self.disable_motor()
-        logger.info("Controller thread stopped")
 
 
 class RealTimePlotWidget(FigureCanvas):
@@ -375,8 +81,9 @@ class RealTimePlotWidget(FigureCanvas):
         self.line_actual = None
         self.background = None
 
-        self.start_time = time.time()
+        self.start_time = time.monotonic()
 
+        self.configured_window = get_config().gui.max_time_window_sec
         # Initialize plot
         self.setup_plot()
 
@@ -389,45 +96,19 @@ class RealTimePlotWidget(FigureCanvas):
         self.ax.set_ylim(0, 110)
 
     def update_data(self, target: float, actual: float):
-        """Update plot with new data using optimized blitting"""
-        current_time = time.time() - self.start_time
-
+        current_time = time.monotonic() - self.start_time
         self.time_data.append(current_time)
         self.target_data.append(target)
         self.actual_data.append(actual)
         self.error_data.append(target - actual)
-
-        if len(self.time_data) > 1:
-            # Use blitting for better performance (only update lines, not entire figure)
-            if self.line_target is None or self.line_actual is None:
-                # Initial setup
-                self.ax.clear()
-                self.setup_plot()
-
-                self.line_target, = self.ax.plot(self.time_data, self.target_data, 'b--',
-                                                  linewidth=2, label='Target', alpha=0.8, animated=True)
-                self.line_actual, = self.ax.plot(self.time_data, self.actual_data, 'g-',
-                                                  linewidth=2, label='Actual', animated=True)
-
-                self.ax.legend(loc='upper right', fontsize=9)
-                self.draw()
-                self.background = self.copy_from_bbox(self.ax.bbox)
-            else:
-                # Fast update using blitting
-                self.restore_region(self.background)
-
-                # Update line data
-                self.line_target.set_data(list(self.time_data), list(self.target_data))
-                self.line_actual.set_data(list(self.time_data), list(self.actual_data))
-
-                # Redraw only the lines
-                self.ax.draw_artist(self.line_target)
-                self.ax.draw_artist(self.line_actual)
-
-                self.blit(self.ax.bbox)
-        else:
-            # Not enough data yet
-            self.draw()
+        if self.line_target is None:
+            self.line_target, = self.ax.plot([], [], 'b--', label='Target')
+            self.line_actual, = self.ax.plot([], [], 'g-', label='Actual')
+            self.ax.legend(loc='upper right', fontsize=9)
+        self.line_target.set_data(list(self.time_data), list(self.target_data))
+        self.line_actual.set_data(list(self.time_data), list(self.actual_data))
+        self.ax.set_xlim(max(0, current_time - self.configured_window), max(self.configured_window, current_time))
+        self.draw_idle()
 
     def clear_data(self):
         """Clear all data"""
@@ -435,7 +116,7 @@ class RealTimePlotWidget(FigureCanvas):
         self.target_data.clear()
         self.actual_data.clear()
         self.error_data.clear()
-        self.start_time = time.time()
+        self.start_time = time.monotonic()
 
         # Reset blitting cache
         self.line_target = None
@@ -450,21 +131,20 @@ class RealTimePlotWidget(FigureCanvas):
 class ModernMotorControlGUI(QMainWindow):
     """Modern DC Motor Control GUI with all improvements"""
 
-    def __init__(self):
+    def __init__(self, offline=False):
         super().__init__()
 
+        self.offline = offline
         self.config = get_config()
         self.config.setup_logging()
 
         logger.info("=" * 60)
-        logger.info("DC Motor Control System v2.0 - Starting")
+        logger.info("DC Motor Control - Starting")
         logger.info("=" * 60)
 
         # Motor PWM instance (not global)
         self.motor_pwm = None
 
-        # Initialize hardware (if on Raspberry Pi)
-        self.init_hardware()
 
         # Initialize controllers
         self.controllers = {
@@ -481,48 +161,46 @@ class ModernMotorControlGUI(QMainWindow):
         self.controller_thread = None
 
         # UI Setup
-        self.setWindowTitle("DC Motor Control System v2.0 - Professional Edition")
-        self.setMinimumSize(1400, 900)
+        self.setWindowTitle("DC Motor Control")
+        self.setMinimumSize(min(960, self.config.gui.window_width), min(640, self.config.gui.window_height))
+        self.resize(self.config.gui.window_width, self.config.gui.window_height)
 
         self.setup_ui()
-        self.apply_theme('modern_light')
+        self.apply_theme(self.config.gui.theme)
+        self.on_controller_changed(3)
 
-        # Start threads
-        self.start_threads()
+        # Hardware is opened only after controller and UI initialization succeeds.
+        try:
+            self.init_hardware()
+            self.start_threads()
+        except Exception:
+            if self.controller_thread is not None:
+                self.controller_thread.stop()
+                self.controller_thread.wait()
+            if self.speed_sensor is not None:
+                self.speed_sensor.stop()
+                self.speed_sensor.wait()
+            if self.motor_pwm is not None:
+                self.motor_pwm.stop()
+            raise
+        if self.offline:
+            self.start_button.setEnabled(False)
+            self.motor_status.setText("Motor: DISCONNECTED (offline)")
+            self.actual_label.setText("Actual: unavailable")
+            self.pwm_label.setText("PWM: unavailable")
+            self.error_label.setText("Error: unavailable")
 
         # Update timer
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self.update_display)
-        self.update_timer.start(100)  # 10Hz
+        self.update_timer.start(self.config.gui.plot_update_interval_ms)
 
         logger.info("GUI initialized successfully")
 
     def init_hardware(self):
-        """Initialize hardware (GPIO, PWM)"""
-        if not is_raspberry_pi():
-            logger.warning("Not running on Raspberry Pi - using simulation mode")
-            return
-
-        logger.info("Initializing GPIO hardware...")
-
-        GPIO.setwarnings(False)
-        GPIO.setmode(GPIO.BCM)
-
-        # Setup pins
-        GPIO.setup(self.config.gpio.motor_in1, GPIO.OUT)
-        GPIO.setup(self.config.gpio.motor_in2, GPIO.OUT)
-        GPIO.setup(self.config.gpio.motor_ena, GPIO.OUT)
-        GPIO.setup(self.config.gpio.ir_sensor_pin, GPIO.IN)
-
-        # Create PWM (instance variable, not global)
-        self.motor_pwm = GPIO.PWM(self.config.gpio.motor_ena, self.config.motor.pwm_frequency)
-        self.motor_pwm.start(0)
-
-        # Set direction (forward)
-        GPIO.output(self.config.gpio.motor_in1, GPIO.HIGH)
-        GPIO.output(self.config.gpio.motor_in2, GPIO.LOW)
-
-        logger.info("GPIO initialized successfully")
+        """Open real hardware unless the user selected offline inspection."""
+        if not self.offline:
+            self.motor_pwm = MotorHardware(self.config)
 
     def setup_ui(self):
         """Setup the user interface"""
@@ -555,7 +233,7 @@ class ModernMotorControlGUI(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
 
         # Title
-        title = QLabel("⚙️ DC Motor Control System v2.0")
+        title = QLabel("DC Motor Control")
         title.setObjectName("heading")
         layout.addWidget(title)
 
@@ -632,6 +310,7 @@ class ModernMotorControlGUI(QMainWindow):
 
         self.speed_gauge = CircularGauge()
         self.speed_gauge.setRange(0, 100)
+        self.speed_gauge.setAvailable(False)
         self.speed_gauge.setUnit("%")
         layout.addWidget(self.speed_gauge, alignment=Qt.AlignCenter)
 
@@ -670,12 +349,17 @@ class ModernMotorControlGUI(QMainWindow):
         """Create tabbed interface"""
         tabs = QTabWidget()
 
-        tabs.addTab(self.create_control_tab(), "🎮 Control")
-        tabs.addTab(self.create_plot_tab(), "📊 Real-Time Plot")
-        tabs.addTab(self.create_tuning_tab(), "⚙️ Tuning")
-        tabs.addTab(self.create_performance_tab(), "📈 Performance")
-        tabs.addTab(self.create_settings_tab(), "⚙️ Settings")
-        tabs.addTab(self.create_logs_tab(), "📝 Logs")
+        for content, title in [(self.create_control_tab(), 'Control'),
+                               (self.create_plot_tab(), 'Real-Time Plot'),
+                               (self.create_tuning_tab(), 'Tuning'),
+                               (self.create_performance_tab(), 'Performance'),
+                               (self.create_settings_tab(), 'Settings'),
+                               (self.create_logs_tab(), 'Logs')]:
+            scroll = QScrollArea()
+            scroll.setWidgetResizable(True)
+            scroll.setFrameShape(QFrame.NoFrame)
+            scroll.setWidget(content)
+            tabs.addTab(scroll, title)
 
         return tabs
 
@@ -700,17 +384,17 @@ class ModernMotorControlGUI(QMainWindow):
         buttons_layout = QHBoxLayout()
         buttons_card.layout().addLayout(buttons_layout)
 
-        self.start_button = PulseButton("▶ Start Motor")
+        self.start_button = PulseButton("Start Motor")
         self.start_button.setObjectName("success")
         self.start_button.clicked.connect(self.start_motor)
         buttons_layout.addWidget(self.start_button)
 
-        self.stop_button = PulseButton("⏹ Stop Motor")
+        self.stop_button = PulseButton("Stop Motor")
         self.stop_button.setObjectName("error")
         self.stop_button.clicked.connect(self.stop_motor)
         buttons_layout.addWidget(self.stop_button)
 
-        self.reset_button = PulseButton("↻ Reset")
+        self.reset_button = PulseButton("Reset")
         self.reset_button.setObjectName("secondary")
         self.reset_button.clicked.connect(self.reset_controller)
         buttons_layout.addWidget(self.reset_button)
@@ -725,10 +409,10 @@ class ModernMotorControlGUI(QMainWindow):
         self.controller_group = QButtonGroup()
 
         controllers = [
-            ("PI Controller", "Simple, fast response"),
-            ("PID Controller", "Handles disturbances"),
-            ("Fuzzy Controller", "Non-linear, robust"),
-            ("Neural-Tuned Fuzzy Controller ⭐", "Adaptive neural-fuzzy (BEST)")
+            ("PI Controller", "Proportional and integral feedback"),
+            ("PID Controller", "Proportional, integral and filtered derivative"),
+            ("Fuzzy Controller", "Mamdani fuzzy inference"),
+            ("Neural-Tuned Fuzzy Controller", "Learned scaling when verified models are available")
         ]
 
         for i, (name, desc) in enumerate(controllers):
@@ -828,7 +512,7 @@ class ModernMotorControlGUI(QMainWindow):
         self.overshoot_label = QLabel("Overshoot: -")
         self.settling_label = QLabel("Settling Time: -")
         self.ss_error_label = QLabel("Steady-State Error: -")
-        self.score_label = QLabel("Overall Score: -")
+        self.score_label = QLabel("Composite score: not defined")
 
         metrics_layout.addWidget(QLabel("Metric"), 0, 0)
         metrics_layout.addWidget(QLabel("Value"), 0, 1)
@@ -892,27 +576,32 @@ class ModernMotorControlGUI(QMainWindow):
         return tab
 
     def start_threads(self):
-        """Start sensor and controller threads"""
-        # Start speed sensor
-        self.speed_sensor = ThreadSafeSpeedSensor(self.config)
-        self.speed_sensor.speed_updated.connect(self.on_speed_updated)
-        self.speed_sensor.start()
-
-        # Start controller with motor_pwm instance
-        self.controller_thread = ThreadSafeController(
-            self.current_controller,
-            self.config,
-            motor_pwm=self.motor_pwm
-        )
+        if self.offline:
+            return
+        self.controller_thread = ThreadSafeController(self.current_controller, self.config, self.motor_pwm)
         self.controller_thread.pwm_updated.connect(self.on_pwm_updated)
         self.controller_thread.metrics_updated.connect(self.on_metrics_updated)
+        self.controller_thread.faulted.connect(self.on_control_fault)
+        self.speed_sensor = ThreadSafeSpeedSensor(self.config, self.motor_pwm)
+        self.speed_sensor.speed_updated.connect(self.on_speed_updated)
+        self.speed_sensor.faulted.connect(self.on_control_fault)
         self.controller_thread.start()
+        self.speed_sensor.start()
 
-        logger.info("Threads started")
+    def on_control_fault(self, reason):
+        self.stop_motor()
+        self.motor_status.setText("Motor: STOPPED - " + reason)
+        if self.controller_thread and not math.isfinite(self.controller_thread.current_pwm):
+            self.pwm_label.setText('PWM: unavailable')
+        logger.error(reason)
 
     def apply_theme(self, theme_name: str):
         """Apply theme to application"""
         theme_map = {
+            'modern': 'modern_light',
+            'modern_light': 'modern_light',
+            'modern_dark': 'modern_dark',
+            'dark': 'modern_dark',
             'Modern Light': 'modern_light',
             'Modern Dark': 'modern_dark',
             'Classic': 'classic'
@@ -936,7 +625,7 @@ class ModernMotorControlGUI(QMainWindow):
 
         # Update controller thread
         if self.controller_thread:
-            self.controller_thread.controller = self.current_controller
+            self.controller_thread.set_controller(self.current_controller)
 
         # Update UI
         self.controller_label.setText(f"Controller: {self.current_controller_name}")
@@ -951,21 +640,23 @@ class ModernMotorControlGUI(QMainWindow):
 
         logger.info(f"Controller changed to {self.current_controller_name}")
 
-    def on_speed_updated(self, speed: float):
+    def on_speed_updated(self, speed: float, sampled_at: float):
         """Handle speed sensor update"""
         if self.controller_thread:
-            self.controller_thread.update_current_speed(speed)
+            self.controller_thread.update_current_speed(speed, sampled_at)
 
     def on_pwm_updated(self, pwm: float):
         """Handle PWM update from controller"""
-        pass  # Handled in update_display
+        self.pwm_label.setText(f"PWM: {pwm:.1f}%" if math.isfinite(pwm) else 'PWM: unavailable')
+        self.pwm_bar.setValueAnimated(int(pwm) if math.isfinite(pwm) else 0)
 
-    def on_metrics_updated(self, metrics: Dict[str, float]):
-        """Handle metrics update"""
-        self.overshoot_label.setText(f"Overshoot: {metrics['overshoot']:.2f}%")
-        self.settling_label.setText(f"Settling Time: {metrics['settling_time']:.2f}s")
-        self.ss_error_label.setText(f"Steady-State Error: {metrics['ss_error']:.2f}%")
-        self.score_label.setText(f"Overall Score: {metrics['score']:.1f}/100")
+    def on_metrics_updated(self, metrics):
+        def show(value, unit):
+            return f"{value:.2f}{unit}" if value is not None else "Unavailable"
+        self.overshoot_label.setText("Overshoot: " + show(metrics['overshoot'], "%"))
+        self.settling_label.setText("Settling Time: " + show(metrics['settling_time'], "s"))
+        self.ss_error_label.setText("Steady-State Error: " + show(metrics['ss_error'], "%"))
+        self.score_label.setText("Composite score: not defined")
 
     def update_display(self):
         """Update display with current values (thread-safe)"""
@@ -975,14 +666,23 @@ class ModernMotorControlGUI(QMainWindow):
         # Get current values
         target = self.target_slider.value()
 
-        # Thread-safe: copy all values inside lock to avoid TOCTOU
+        # Copy a coherent snapshot of measured feedback and commanded output.
         with self.controller_thread.state_lock:
             current = self.controller_thread.current_speed
             motor_enabled = self.controller_thread.motor_enabled
+            pwm = self.controller_thread.current_pwm
+            sampled_at = self.controller_thread.last_update_time
 
         # Update target if changed
         self.controller_thread.set_target_speed(target)
 
+        if sampled_at is None or time.monotonic() - sampled_at > WATCHDOG_TIMEOUT_SEC:
+            self.speed_gauge.setAvailable(False)
+            self.actual_label.setText('Actual: unavailable')
+            self.error_label.setText('Error: unavailable')
+            self.sensor_status.setStatus('inactive')
+            return
+        self.speed_gauge.setAvailable(True)
         # Update gauge
         self.speed_gauge.setValue(current, animated=True)
 
@@ -993,14 +693,14 @@ class ModernMotorControlGUI(QMainWindow):
         error = target - current
         self.error_label.setText(f"Error: {error:+.1f}%")
 
-        # Update PWM (mock for now)
-        pwm = 50 + error * 0.5
-        pwm = max(0, min(100, pwm))
-        self.pwm_label.setText(f"PWM: {pwm:.1f}%")
-        self.pwm_bar.setValueAnimated(int(pwm))
+        # Display the value actually written by the controller worker.
+        self.pwm_label.setText(f"PWM: {pwm:.1f}%" if math.isfinite(pwm) else 'PWM: unavailable')
+        self.pwm_bar.setValueAnimated(int(pwm) if math.isfinite(pwm) else 0)
 
         # Update plot
-        self.plot_widget.update_data(target, current)
+        if sampled_at != getattr(self, '_plotted_sample', None):
+            self.plot_widget.update_data(target, current)
+            self._plotted_sample = sampled_at
 
         # Update status indicators
         self.sensor_status.setStatus("ok" if motor_enabled else "inactive")
@@ -1008,8 +708,8 @@ class ModernMotorControlGUI(QMainWindow):
 
     def start_motor(self):
         """Start motor"""
-        if self.controller_thread:
-            self.controller_thread.enable_motor()
+        if not self.controller_thread or not self.controller_thread.enable_motor():
+            return
 
         self.start_button.start_pulse()
         self.motor_status.setStatus("ok")
@@ -1049,7 +749,8 @@ class ModernMotorControlGUI(QMainWindow):
         # If currently using PID, update thread
         if self.current_controller_name == 'PID':
             self.current_controller = self.controllers['PID']
-            self.controller_thread.controller = self.current_controller
+            if self.controller_thread:
+                self.controller_thread.set_controller(self.current_controller)
 
         logger.info(f"PID parameters updated: Kp={kp}, Ki={ki}, Kd={kd}")
 
@@ -1101,7 +802,10 @@ class ModernMotorControlGUI(QMainWindow):
         """Clean up on close"""
         logger.info("Shutting down...")
 
-        # Stop threads
+        self.update_timer.stop()
+        # Disable output before waiting for sensor shutdown.
+        if self.controller_thread:
+            self.controller_thread.stop()
         if self.speed_sensor:
             self.speed_sensor.stop()
             self.speed_sensor.wait()
@@ -1111,24 +815,35 @@ class ModernMotorControlGUI(QMainWindow):
             self.controller_thread.wait()
 
         # Cleanup GPIO
-        if self.motor_pwm and is_raspberry_pi():
-            self.motor_pwm.stop()
-            GPIO.cleanup()
+        if self.motor_pwm:
+            try:
+                self.motor_pwm.stop()
+            except Exception:
+                logger.critical('GPIO cleanup failed; disconnect motor power', exc_info=True)
+                QMessageBox.critical(self, 'Motor shutdown error', 'GPIO cleanup failed. Disconnect motor power before leaving the rig.')
 
-        logger.info("Shutdown complete")
+        logger.info("Application shutdown complete")
 
         event.accept()
 
 
 def main():
     """Main entry point"""
-    app = QApplication(sys.argv)
+    import argparse
+    parser = argparse.ArgumentParser(description="DC motor control with measured hardware feedback")
+    parser.add_argument('--offline', action='store_true', help='Inspect the GUI without motor I/O or generated sensor readings')
+    args = parser.parse_args()
+    app = QApplication([sys.argv[0]])
 
     # Set application font
     app.setFont(ModernTheme.get_font())
 
     # Create and show window
-    window = ModernMotorControlGUI()
+    try:
+        window = ModernMotorControlGUI(offline=args.offline)
+    except (RuntimeError, ImportError, OSError) as exc:
+        print(f"Startup failed: {exc}", file=sys.stderr)
+        sys.exit(1)
     window.show()
 
     sys.exit(app.exec_())

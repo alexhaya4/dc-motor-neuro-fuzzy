@@ -1,5 +1,14 @@
 # Python virtual environment
 venv/
+.venv/
+.env
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+models/
+data/
 
 # Byte-compiled files
 __pycache__/

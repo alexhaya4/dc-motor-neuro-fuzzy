@@ -104,8 +104,13 @@ class BaseController(ABC):
             # Validate inputs
             target_speed, current_speed = self.validate_inputs(target_speed, current_speed)
 
+            if target_speed == 0:
+                return MIN_PWM_DUTY_CYCLE
+
             # Compute control output
             output = self._compute_control_output(target_speed, current_speed)
+            if not math.isfinite(output):
+                raise ControllerValidationError(f"Non-finite controller output: {output}")
 
             # Update history
             self.prev_speed = current_speed
@@ -209,27 +214,17 @@ class FuzzyControllerBase(BaseController):
         Returns:
             List of fuzzy rules
         """
-        rules = []
-
-        # Core rules
-        rules.append(ctrl.Rule(self.error['NB'] & self.delta_error['NB'], self.pwm_output['VL']))
-        rules.append(ctrl.Rule(self.error['NB'] & self.delta_error['NS'], self.pwm_output['VL']))
-        rules.append(ctrl.Rule(self.error['NB'] & self.delta_error['ZE'], self.pwm_output['LO']))
-
-        rules.append(ctrl.Rule(self.error['NS'] & self.delta_error['NS'], self.pwm_output['LO']))
-        rules.append(ctrl.Rule(self.error['NS'] & self.delta_error['ZE'], self.pwm_output['ME']))
-
-        rules.append(ctrl.Rule(self.error['ZE'] & self.delta_error['ZE'], self.pwm_output['ME']))
-        rules.append(ctrl.Rule(self.error['ZE'] & self.delta_error['NS'], self.pwm_output['ME']))
-        rules.append(ctrl.Rule(self.error['ZE'] & self.delta_error['PS'], self.pwm_output['ME']))
-
-        rules.append(ctrl.Rule(self.error['PS'] & self.delta_error['ZE'], self.pwm_output['HI']))
-        rules.append(ctrl.Rule(self.error['PS'] & self.delta_error['PS'], self.pwm_output['HI']))
-
-        rules.append(ctrl.Rule(self.error['PB'] & self.delta_error['PB'], self.pwm_output['VH']))
-        rules.append(ctrl.Rule(self.error['PB'] & self.delta_error['ZE'], self.pwm_output['VH']))
-
-        return rules
+        labels = ('NB', 'NS', 'ZE', 'PS', 'PB')
+        # Every error/delta-error combination has an explicit consequent.
+        outputs = (
+            ('VL', 'VL', 'VL', 'LO', 'ME'),
+            ('VL', 'VL', 'LO', 'ME', 'HI'),
+            ('VL', 'LO', 'ME', 'HI', 'VH'),
+            ('LO', 'ME', 'HI', 'VH', 'VH'),
+            ('ME', 'HI', 'VH', 'VH', 'VH'),
+        )
+        return [ctrl.Rule(self.error[e] & self.delta_error[d], self.pwm_output[outputs[i][j]])
+                for i, e in enumerate(labels) for j, d in enumerate(labels)]
 
     def _compute_control_output(self, target_speed: float, current_speed: float) -> float:
         """
@@ -263,10 +258,7 @@ class FuzzyControllerBase(BaseController):
 
         except (ValueError, KeyError, RuntimeError) as e:
             log_exception(self.logger, "Fuzzy computation failed", e)
-            # Return proportional control as fallback
-            proportional_gain = 0.5
-            fallback_output = (MAX_PWM_DUTY_CYCLE / 2) + error * proportional_gain
-            return max(MIN_PWM_DUTY_CYCLE, min(MAX_PWM_DUTY_CYCLE, fallback_output))
+            return MIN_PWM_DUTY_CYCLE
 
     def reset(self) -> None:
         """Reset fuzzy controller state"""

@@ -2,6 +2,19 @@
 
 All notable changes to the DC Motor Neuro-Fuzzy Control System.
 
+## Unreleased maintenance
+
+- Resolve the invalid dependency pin, add missing fuzzy/graph packages, and separate hash-locked runtime, development and GPIO dependencies for Python 3.11/3.12.
+- Make software tests, dependency audits and static checks fail CI when they find failures; pin current Actions and repair Dependabot configuration.
+- Remove import-time GPIO activation from the compatibility launcher and add explicit offline inspection without random sensor readings.
+- Correct sensor freshness, late-output races, zero-setpoint behavior, shutdown ordering, PWM display, GUI startup and plot time limits.
+- Add a separate output watchdog and validate motor configuration and distinct GPIO pins.
+- Unify neural model filenames, input normalization, output scaling, integrity checks and Keras/HDF5 loading. Replace duplicate heuristic-neural implementations with maintained adapters.
+- Route collection and relay tuning through real motor I/O with cleanup; identify heuristic labels, share the trainer schema, and fail unsuccessful relay tuning without fabricated gains.
+- Replace first-crossing settling estimates and missing-data zero scores with explicitly available observation-based metrics.
+- Repair installation, source transfer and training entry points. The programmatic DataCollector signature now takes config/hardware rather than positional GPIO pins.
+- Add regression coverage for these behaviors. Physical rig validation remains separate from software tests.
+
 ---
 
 ## [2.2.0] - 2026-01-16 - Advanced Features Release 🎉

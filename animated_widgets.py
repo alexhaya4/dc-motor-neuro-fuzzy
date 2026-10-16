@@ -111,6 +111,7 @@ class CircularGauge(QWidget):
         super().__init__(parent)
         self._value = 0
         self._target_value = 0
+        self._available = True
         self._min_value = 0
         self._max_value = 100
         self._unit = "RPM"
@@ -146,6 +147,10 @@ class CircularGauge(QWidget):
         else:
             self._value = value
             self.update()
+
+    def setAvailable(self, available: bool):
+        self._available = available
+        self.update()
 
     def setRange(self, min_val: float, max_val: float):
         """Set gauge range"""
@@ -195,7 +200,7 @@ class CircularGauge(QWidget):
         painter.setFont(font)
         painter.setPen(QColor("#212121"))
         painter.drawText(rect, Qt.AlignCenter,
-                        f"{int(self._value)}")
+                        f"{int(self._value)}" if self._available else "n/a")
 
         # Draw unit text
         font = QFont("Segoe UI", 12)
@@ -332,6 +337,7 @@ class StatusIndicator(QWidget):
 
         layout.addStretch()
 
+        self._blink_state = True
         self._update_dot()
 
         # Blink animation for warnings/errors

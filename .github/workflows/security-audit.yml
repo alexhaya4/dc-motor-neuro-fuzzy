@@ -1,147 +1,72 @@
-name: Security Audit
+name: Software checks
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
   schedule:
-    # Run weekly on Monday at 9:00 AM UTC
     - cron: '0 9 * * 1'
-  workflow_dispatch:  # Allow manual trigger
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  dependency-audit:
-    name: Dependency Security Audit
+  tests:
+    name: Python ${{ matrix.python }}
     runs-on: ubuntu-latest
-
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.12']
+    env:
+      QT_QPA_PLATFORM: offscreen
+      TF_NUM_INTRAOP_THREADS: '1'
+      TF_NUM_INTEROP_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      TF_CPP_MIN_LOG_LEVEL: '3'
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - name: Install locked dependencies
+        run: python -m pip install --require-hashes -r requirements-dev.txt
+      - name: Check installed dependency compatibility
+        run: python -m pip check
+      - name: Check Python errors and shell syntax
+        run: |
+          python -m ruff check --select E9,F63,F7,F82 .
+          bash -n install.sh run.sh deploy_to_pi.sh
+      - name: Run software tests
+        run: python -m pytest tests --cov=base_controller --cov=conventional_controllers --cov=control_runtime --cov=motor_hardware --cov=nn_models --cov=performance_metrics --cov=improved_data_collection --cov=auto_tuner --cov-report=xml --cov-report=term-missing
+      - name: Audit runtime and GPIO dependency locks
+        if: matrix.python == '3.12'
+        run: |
+          python -m pip_audit --disable-pip --require-hashes -r requirements.txt --progress-spinner off
+          python -m pip_audit --disable-pip --require-hashes -r requirements-pi.txt --progress-spinner off
+      - name: Upload software coverage
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-python-${{ matrix.python }}
+          path: coverage.xml
+          if-no-files-found: ignore
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install safety pip-audit
-
-    - name: Run Safety check
-      run: |
-        pip install -r requirements.txt
-        safety check --json || true
-      continue-on-error: true
-
-    - name: Run pip-audit
-      run: |
-        pip-audit --requirement requirements.txt --format json || true
-      continue-on-error: true
-
-    - name: Check for known vulnerabilities (detailed)
-      run: |
-        echo "=== Checking TensorFlow version ==="
-        pip index versions tensorflow | head -n 5
-        echo ""
-        echo "=== Current dependencies ==="
-        pip list | grep -E "(tensorflow|numpy|PyQt5)"
-        echo ""
-        echo "=== Checking for security advisories ==="
-        pip-audit --requirement requirements.txt || echo "Some vulnerabilities found - review above"
-
-  code-quality:
-    name: Code Quality & Linting
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-
-    - name: Install linting tools
-      run: |
-        python -m pip install --upgrade pip
-        pip install flake8 black mypy bandit
-
-    - name: Run Flake8
-      run: |
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-      continue-on-error: true
-
-    - name: Run Black (code formatting check)
-      run: |
-        black --check . || echo "Code formatting issues found"
-      continue-on-error: true
-
-    - name: Run Bandit (security linter)
-      run: |
-        bandit -r . -f json -o bandit-report.json || true
-        bandit -r . -ll || echo "Security issues found - review above"
-      continue-on-error: true
-
-    - name: Upload Bandit report
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: bandit-security-report
-        path: bandit-report.json
-
-  test-suite:
-    name: Run Tests
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-
-    - name: Run tests with coverage
-      run: |
-        pytest tests/ --cov=. --cov-report=xml --cov-report=html --cov-report=term
-      continue-on-error: true
-
-    - name: Upload coverage reports
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: coverage-reports
-        path: |
-          coverage.xml
-          htmlcov/
-
-  codeql-analysis:
-    name: CodeQL Security Analysis
+  codeql:
+    name: CodeQL
     runs-on: ubuntu-latest
     permissions:
-      security-events: write
-      actions: read
       contents: read
-
+      actions: read
+      security-events: write
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v3
-      with:
-        languages: python
-        queries: security-and-quality
-
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: github/codeql-action/init@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
+        with:
+          languages: python
+          build-mode: none
+      - uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4

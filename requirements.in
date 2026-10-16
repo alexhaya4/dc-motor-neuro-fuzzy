@@ -1,0 +1,11 @@
+# Shared Python 3.11/3.12 runtime. ARM Qt bindings are supplied by the OS.
+numpy==2.4.6
+scipy==1.17.1
+tensorflow==2.21.0
+keras==3.15.1
+matplotlib==3.11.2
+PyQt5==5.15.11; platform_machine != "aarch64" and platform_machine != "armv7l"
+scikit-fuzzy==0.5.0
+networkx==3.6.1
+python-dotenv==1.2.4
+jsonschema==4.26.0

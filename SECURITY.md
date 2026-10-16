@@ -1,24 +1,19 @@
-# Security Policy
+# Security
 
-## Reporting Security Issues
-Please report security vulnerabilities to us through the GitHub Security Advisory link: [GitHub Security Advisory](https://github.com/alexhaya4/dc-motor-neuro-fuzzy/security/advisories).
+Report vulnerabilities through [GitHub private vulnerability reporting](https://github.com/alexhaya4/dc-motor-neuro-fuzzy/security/advisories).
 
-## Responsible Disclosure Guidelines
-We take security issues seriously, and we encourage responsible disclosure of vulnerabilities. Please give us at least 30 days to respond to your report before disclosing it publicly.
+## Dependencies
 
-## TensorFlow Recommendations
-We recommend using TensorFlow version 2.17.0 or higher to ensure the best performance and security.
+Install the hash-locked requirements for the intended environment. Runtime and GPIO locks are checked with `pip-audit` in CI; findings fail the job. Update the input files and regenerate the corresponding lock files together. A clean dependency audit covers known package advisories at the time of the check.
 
-## Dependency Audit Commands
-To maintain a secure project, we encourage you to use the following commands to audit dependencies:
-- `pip-audit`
-- `safety`
+## Models and training data
 
-## Security Best Practices
-### Software Security
-- Regularly update your dependencies.
-- Use secure coding practices.
+Load models only from trusted sources. The maintained controller requires SHA-256 sidecars and Keras safe-mode loading. Checksums detect changes relative to a sidecar; they do not authenticate the model's author. Keep model files and their sidecars together. Legacy HDF5 models are accepted only with matching sidecars; new training saves native `.keras` models.
 
-### Hardware Security
-- Implement physical security measures.
-- Regularly evaluate hardware for vulnerabilities.
+Training data is size-limited, schema-checked and checked for finite numeric values. Scaling labels must lie in the ranges the networks can represent. Heuristic collection labels are identified as such in the saved dataset.
+
+## Motor operation
+
+The supported hardware path starts disabled, requires fresh feedback to enable control, and writes zero on stop, expired feedback and shutdown. A separate software watchdog disables output if writes stall. These are software protections, not an independent hardware emergency stop. Use an appropriate driver, power supply and physical disconnect for the motor rig. Software tests do not establish electrical safety or validate a particular motor's tuning.
+
+Offline inspection never opens GPIO, enables a motor or generates sensor readings. Raspberry Pi installations need OS-maintained Qt packages and GPIO permissions; do not make device files world-writable.
