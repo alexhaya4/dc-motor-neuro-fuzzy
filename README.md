@@ -1,5 +1,6 @@
 # Neuro-Fuzzy DC Motor Control
 
+[![Release v2.0.0](https://img.shields.io/badge/Release-v2.0.0-a53b28)](https://github.com/alexhaya4/dc-motor-neuro-fuzzy/releases/tag/v2.0.0)
 [![Software checks](https://github.com/alexhaya4/dc-motor-neuro-fuzzy/actions/workflows/security-audit.yml/badge.svg)](https://github.com/alexhaya4/dc-motor-neuro-fuzzy/actions/workflows/security-audit.yml)
 [![Python 3.11 and 3.12](https://img.shields.io/badge/Python-3.11%20%7C%203.12-3776AB?logo=python&logoColor=white)](#quick-start)
 [![Code license: MIT](https://img.shields.io/badge/Code-MIT-176B50)](LICENSE)
@@ -8,6 +9,8 @@
 A Python control-engineering workbench for studying DC motor speed regulation on a Raspberry Pi. Compare PI, PID, Mamdani fuzzy logic and neural-tuned fuzzy control through a PyQt5 interface, using measured speed feedback and explicit PWM commands.
 
 Built by [Alex Odhiambo Haya](https://github.com/alexhaya4). The accompanying [research preprint](https://doi.org/10.5281/zenodo.20124685) explains the educational platform and its controller architecture.
+
+**Current software release: [v2.0.0](https://github.com/alexhaya4/dc-motor-neuro-fuzzy/releases/tag/v2.0.0).** See the [release notes](CHANGELOG.md#200---2026-10-17) for changes and migration guidance.
 
 [Quick start](#quick-start) · [Hardware setup](docs/USAGE.md#raspberry-pi-setup) · [Training](docs/USAGE.md#collect-data-and-train) · [Contributing](CONTRIBUTING.md) · [Citation](#research-and-citation) · [Licensing](#licensing)
 
@@ -26,9 +29,9 @@ The maintained launcher displays speed, error, PWM output and available performa
 
 ## Inside the feedback loop
 
-![Animated signal flow showing the speed setpoint passing through the controller and PWM driver to the motor, with measured speed returning through the IR sensor.](docs/media/control-loop.gif)
+![Animated engineering diagram showing a speed reference, controller calculation, moving PWM trace, rotating motor and encoder, IR sensing and timestamped feedback.](docs/media/control-loop.gif)
 
-*The moving signal shows how the feedback loop works. This is a conceptual explanation, not a hardware recording.*
+*Follow the highlighted working sequence: reference, comparison, PWM drive, optical measurement and timestamped feedback. The rotating motor and pulse trace illustrate the mechanism; they are not recorded performance data.*
 
 ![Functional schematic showing the speed reference, selected controller, L298N driver and DC motor, with shaft measurements returned by the IR sensor and an independent output watchdog.](docs/media/control-loop.svg)
 

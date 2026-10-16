@@ -70,3 +70,124 @@ jobs:
           languages: python
           build-mode: none
       - uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
+
+  release:
+    name: Publish versioned release
+    needs: [tests, codeql]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    concurrency:
+      group: source-release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prepare release from version and changelog
+        id: metadata
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          python3 - <<'PY'
+          import datetime
+          import os
+          import re
+          import subprocess
+          from pathlib import Path
+
+          before = os.environ['BEFORE_SHA']
+          assert re.fullmatch(r'[0-9a-f]{40}', before), 'Invalid previous commit'
+          if before != '0' * 40:
+              subprocess.run(['git', 'cat-file', '-e', before + '^{commit}'], check=True)
+              changed = subprocess.run(['git', 'diff', '--quiet', before, os.environ['GITHUB_SHA'], '--', 'VERSION'])
+              assert changed.returncode in (0, 1), 'Cannot inspect version change'
+              if changed.returncode == 0:
+                  print('VERSION unchanged; no release requested.')
+                  raise SystemExit(0)
+
+          version = Path('VERSION').read_text().strip()
+          number = r'(?:0|[1-9][0-9]*)'
+          assert re.fullmatch(fr'{number}\.{number}\.{number}', version), 'Use a stable semantic version'
+          if before != '0' * 40:
+              previous = subprocess.run(['git', 'show', before + ':VERSION'], capture_output=True, text=True)
+              if previous.returncode == 0:
+                  old_version = previous.stdout.strip()
+                  assert re.fullmatch(fr'{number}\.{number}\.{number}', old_version), 'Invalid previous version'
+                  assert tuple(map(int, version.split('.'))) > tuple(map(int, old_version.split('.'))), 'Version must increase'
+          citation = Path('CITATION.cff').read_text()
+          assert f'version: "{version}"' in citation.split('preferred-citation:')[0], 'Citation version differs'
+          changelog = Path('CHANGELOG.md').read_text()
+          match = re.search(r'^## \[' + re.escape(version) + r'\] - (\d{4}-\d{2}-\d{2})\n(.*?)(?=^## |\Z)', changelog, re.M | re.S)
+          assert match and match[2].strip(), 'Missing release notes'
+          datetime.date.fromisoformat(match[1])
+          assert f'date-released: {match[1]}' in citation.split('preferred-citation:')[0], 'Citation date differs'
+          notes = match[2].strip()
+          notes += '\n\nSource commit: `' + os.environ['GITHUB_SHA'] + '`.'
+          run_url = os.environ['GITHUB_SERVER_URL'] + '/' + os.environ['GITHUB_REPOSITORY'] + '/actions/runs/' + os.environ['GITHUB_RUN_ID']
+          notes += '\n\nValidation: [Software checks](' + run_url + ').\n'
+          Path(os.environ['RUNNER_TEMP'], 'release-notes.md').write_text(notes)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'publish=true\ntag=v{version}\n')
+          PY
+      - name: Publish checked commit and release notes
+        if: steps.metadata.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.metadata.outputs.tag }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+
+          repository = os.environ['GITHUB_REPOSITORY']
+          commit = os.environ['GITHUB_SHA']
+          tag = os.environ['RELEASE_TAG']
+          assert re.fullmatch(r'[0-9a-f]{40}', commit)
+          assert re.fullmatch(r'v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)', tag)
+          base = os.environ['GITHUB_API_URL'] + '/repos/' + repository
+
+          def request(path, payload=None, allow_missing=False):
+              headers = {'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+                         'Accept': 'application/vnd.github+json',
+                         'X-GitHub-Api-Version': '2026-03-10',
+                         'Content-Type': 'application/json'}
+              data = None if payload is None else json.dumps(payload).encode()
+              req = urllib.request.Request(base + path, data=data, headers=headers)
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as response:
+                      return json.load(response)
+              except urllib.error.HTTPError as exc:
+                  if allow_missing and exc.code == 404:
+                      return None
+                  raise SystemExit(f'GitHub request failed: HTTP {exc.code} for {path}') from None
+
+          encoded_tag = urllib.parse.quote(tag, safe='')
+          reference = request('/git/ref/tags/' + encoded_tag, allow_missing=True)
+          if reference:
+              target = reference['object']
+              for _ in range(10):
+                  if target['type'] != 'tag':
+                      break
+                  target = request('/git/tags/' + target['sha'])['object']
+              assert target['type'] == 'commit' and target['sha'] == commit, 'Existing tag points elsewhere; refusing to move it'
+
+          release = request('/releases/tags/' + encoded_tag, allow_missing=True)
+          if release:
+              assert reference and not release['draft'] and not release['prerelease'], 'Existing release does not match a published stable release'
+              print('Release already published: ' + release['html_url'])
+          else:
+              notes = Path(os.environ['RUNNER_TEMP'], 'release-notes.md').read_text()
+              release = request('/releases', {'tag_name': tag, 'target_commitish': commit,
+                                            'name': tag, 'body': notes, 'draft': False,
+                                            'prerelease': False, 'make_latest': 'true'})
+              print('Published: ' + release['html_url'])
+          PY

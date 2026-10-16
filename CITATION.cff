@@ -1,6 +1,8 @@
 cff-version: 1.2.0
 message: "Please cite the accompanying preprint and record the exact Git commit used for software experiments."
 type: software
+version: "2.0.0"
+date-released: 2026-10-17
 title: "Neuro-Fuzzy DC Motor Control"
 authors:
   - family-names: Haya

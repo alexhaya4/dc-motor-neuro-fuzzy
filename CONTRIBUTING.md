@@ -52,3 +52,9 @@ Use actual screenshots for interface figures. Label simulations and conceptual a
 Original code and repository documentation use the [MIT license](LICENSE). Preserve upstream notices when including third-party material, and follow the [paper's CC BY 4.0 terms](LICENSES/README.md) when reusing its text or figures. Contributions must be material you have permission to submit under the applicable terms.
 
 For vulnerabilities, follow [SECURITY.md](SECURITY.md).
+
+## Releases
+
+Update `VERSION`, the software version and date in `CITATION.cff`, and the matching dated section in `CHANGELOG.md` together. Keep the README release link current. The paper's preferred citation keeps its published version and DOI.
+
+On a push to `main` that changes `VERSION`, CI publishes a GitHub source release only after both Python jobs and CodeQL pass. The tag points to the checked commit, and release notes come from the matching changelog section. Existing tags must resolve to that same commit; the release step never moves a tag.

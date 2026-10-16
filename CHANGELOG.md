@@ -1,27 +1,45 @@
 # Changelog
 
-All notable changes to the DC Motor Neuro-Fuzzy Control System.
+## [2.0.0] - 2026-10-17
 
-## [Unreleased]
+This release repairs the maintained motor-control and training paths, updates dependencies, and consolidates the repository around the working application. It is a source release for Python 3.11 and 3.12.
 
-- Resolve the invalid dependency pin, add missing fuzzy/graph packages, and separate hash-locked runtime, development and GPIO dependencies for Python 3.11/3.12.
-- Make software tests, dependency audits and static checks fail CI when they find failures; pin current Actions and repair Dependabot configuration.
-- Remove import-time GPIO activation from the compatibility launcher and add explicit offline inspection without random sensor readings.
-- Correct sensor freshness, late-output races, zero-setpoint behavior, shutdown ordering, PWM display, GUI startup and plot time limits.
-- Add a separate output watchdog and validate motor configuration and distinct GPIO pins.
-- Unify neural model filenames, input normalization, output scaling, integrity checks and Keras/HDF5 loading. Replace duplicate heuristic-neural implementations with maintained adapters.
-- Route collection and relay tuning through real motor I/O with cleanup; identify heuristic labels, share the trainer schema, and fail unsuccessful relay tuning without fabricated gains.
-- Replace first-crossing settling estimates and missing-data zero scores with explicitly available observation-based metrics.
-- Repair installation, source transfer and training entry points. The programmatic DataCollector signature now takes config/hardware rather than positional GPIO pins.
-- Add regression coverage for these behaviors. Physical rig validation remains separate from software tests.
+### Fixed
 
-### Repository cleanup
+- Correct stale-feedback handling, delayed-output races, zero-setpoint behavior and shutdown ordering. Add an independent GPIO write watchdog.
+- Remove fabricated telemetry. Offline inspection opens the actual interface with motor start disabled and measurements unavailable.
+- Unify neural model filenames, embedded input normalization, scaling-factor ranges and checksum-verified loading. New training saves native Keras models with SHA-256 sidecars.
+- Use measured feedback and actual PWM writes for data collection and relay tuning. Report missing measurements as unavailable and fail relay tuning when usable oscillations are absent.
+- Correct plotting time limits, GUI startup, configuration validation and launch/transfer scripts.
+- Repair Dependabot's Python selection and make the PID response test independent of runner speed.
 
-- Add editable control-loop and neural-scaling schematics alongside the animated signal-flow overview.
-- Remove obsolete implementation reports, duplicate operating guides, unused prototype interfaces and unused icon assets.
-- Remove legacy standalone GPIO scripts that bypassed configuration and the maintained watchdog/output path, plus the obsolete uninstaller and editor-specific assistant settings.
-- Retain the documented compatibility entry points and the active software test suite.
-- Remove unused imports and stale performance-scoring constants; check all Pyflakes rules in CI.
-- Consolidate the code's MIT notices, document the paper's CC BY 4.0 terms and add citation and dependency-license metadata.
+### Dependencies and verification
 
-Earlier source and documentation remain available in [Git history](https://github.com/alexhaya4/dc-motor-neuro-fuzzy/commits/main/). The [Zenodo preprint](https://doi.org/10.5281/zenodo.20124685) remains the archived research reference.
+- Replace invalid pins and add missing graph/fuzzy dependencies. Provide complete hash-locked runtime, development and Raspberry Pi requirements.
+- Test Python 3.11 and 3.12 in CI, audit runtime and GPIO dependency locks, and run CodeQL.
+- Enforce all Pyflakes rules, including unused imports and variables. Test, lint and audit failures fail CI.
+- Include 128 software tests covering controllers, control races, watchdogs, GPIO adapters, actual TensorFlow training/model round trips, metrics and offline Qt startup.
+- Publish versioned source releases from the checked commit after the required jobs pass.
+
+### Documentation and repository cleanup
+
+- Rewrite the README and add focused operating and contribution guides.
+- Add custom control-loop and neural-scaling schematics, an actual interface screenshot and a redesigned animation with a rotating motor, optical readout, moving PWM trace and a highlighted feedback sequence.
+- Remove obsolete implementation reports, duplicate guides, disconnected prototype interfaces, legacy direct-GPIO scripts, unused icon assets, the old uninstaller and assistant-specific editor settings.
+- Consolidate the code's MIT notices, document the preprint's CC BY 4.0 terms, and add citation metadata and third-party license notices.
+
+### Migration
+
+- Use `./run.sh` on the configured Pi or `./run.sh --offline` to inspect the interface. Retired standalone GPIO scripts and the separate simulation interface are no longer included.
+- `DataCollector` now accepts `config` and `hardware`, replacing the older positional GPIO/PWM constructor. Use `improved_data_collection.py` for the maintained collection path.
+- The older launcher and controller import names remain compatibility adapters.
+- Keep trusted model files with their matching SHA-256 sidecars. Missing or invalid requested models cause explicit fuzzy-only operation.
+- Set calibrated maximum RPM, pulses per revolution, debounce, PWM frequency and controller gains in `.env` before running hardware.
+
+### Validation limits
+
+Physical motor validation and quantitative controller comparisons remain outstanding for this revision. GPIO tests use adapters and do not establish electrical safety or real-time guarantees. Collection currently supplies heuristic scaling labels, not experimentally optimized neural training targets. Windows-to-Pi transfer has not been verified in the software test environment.
+
+The [Zenodo preprint](https://doi.org/10.5281/zenodo.20124685) keeps its original version 1.0.0 and DOI. Cite the paper for the research description and record the software tag or exact Git commit used for an experiment.
+
+Earlier source and documentation remain available in [Git history](https://github.com/alexhaya4/dc-motor-neuro-fuzzy/commits/main/).
