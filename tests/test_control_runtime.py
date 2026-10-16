@@ -135,9 +135,8 @@ def test_controller_replacement_disables_previous_output(worker):
 
 
 def test_new_sensor_sample_cannot_validate_output_computed_from_expired_input(worker, monkeypatch):
-    import control_runtime
     clock = [0.0]
-    monkeypatch.setattr(control_runtime.time, 'monotonic', lambda: clock[0])
+    monkeypatch.setattr('control_runtime.time.monotonic', lambda: clock[0])
     control, hardware = worker
     class SlowController(FixedController):
         def compute_output(self, target, current):

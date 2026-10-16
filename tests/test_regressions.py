@@ -79,9 +79,8 @@ def test_complete_fuzzy_rule_grid_has_an_inference_result():
 
 
 def test_pi_pid_use_elapsed_monotonic_time(monkeypatch):
-    import conventional_controllers
     clock = [0.0]
-    monkeypatch.setattr(conventional_controllers.time, 'monotonic', lambda: clock[0])
+    monkeypatch.setattr('conventional_controllers.time.monotonic', lambda: clock[0])
     pi = PIController(kp=0.5, ki=0.1)
     clock[0] = 0.2
     assert pi.compute_output(50, 20) == pytest.approx(15.6)

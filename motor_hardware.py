@@ -117,7 +117,6 @@ class MotorHardware:
         pulses = 0
         last_edge = -math.inf
         started = time.monotonic()
-        now = started
         while time.monotonic() - started < duration:
             if self._closed.is_set() or (cancel is not None and cancel.is_set()):
                 raise InterruptedError('Speed measurement cancelled')

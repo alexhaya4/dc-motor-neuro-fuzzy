@@ -7,6 +7,7 @@
 - Restore the original CodeQL analysis identity and its security-and-quality queries so findings from the earlier configuration are evaluated against current source.
 - Combine the positive-output and PWM-range test assertions to remove a redundant comparison without reducing coverage.
 - Retain downloadable CodeQL reports and fail the scan job on reported findings, including quality notes.
+- Remove an overwritten sensor timestamp assignment and use consistent imports in the control timing tests, addressing three findings from the restored full scan.
 
 ## [2.0.0] - 2026-10-17
 
