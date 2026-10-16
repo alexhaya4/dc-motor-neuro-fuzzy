@@ -26,6 +26,10 @@ The maintained launcher displays speed, error, PWM output and available performa
 
 ## Inside the feedback loop
 
+![Animated signal flow showing the speed setpoint passing through the controller and PWM driver to the motor, with measured speed returning through the IR sensor.](docs/media/control-loop.gif)
+
+*The moving signal shows how the feedback loop works. This is a conceptual explanation, not a hardware recording.*
+
 ![Functional schematic showing the speed reference, selected controller, L298N driver and DC motor, with shaft measurements returned by the IR sensor and an independent output watchdog.](docs/media/control-loop.svg)
 
 *Figure 1. The command travels forward; the shaft measurement closes the feedback loop. Functional connections are shown, not electrical wiring.*

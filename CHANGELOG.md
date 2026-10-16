@@ -17,7 +17,7 @@ All notable changes to the DC Motor Neuro-Fuzzy Control System.
 
 ### Repository cleanup
 
-- Replace generic diagrams with editable control-loop and neural-scaling schematics.
+- Add editable control-loop and neural-scaling schematics alongside the animated signal-flow overview.
 - Remove obsolete implementation reports, duplicate operating guides, unused prototype interfaces and unused icon assets.
 - Remove legacy standalone GPIO scripts that bypassed configuration and the maintained watchdog/output path, plus the obsolete uninstaller and editor-specific assistant settings.
 - Retain the documented compatibility entry points and the active software test suite.
