@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1280" height="650" viewBox="0 0 1280 650" role="img" aria-labelledby="title desc">
+  <title id="title">DC motor feedback loop and independent output watchdog</title>
+  <desc id="desc">A reference speed and measured speed enter the selected controller. Its bounded PWM command passes through the GPIO output path to an L298N driver and DC motor. An IR sensor measures shaft rotation and returns timestamped speed feedback. A separate write watchdog disables output when writes stall. This is a functional diagram, not a wiring plan.</desc>
+  <defs>
+    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#ded8cb" stroke-width=".5"/></pattern>
+    <marker id="arrow" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 4L0 8Z" fill="#292a25"/></marker>
+    <marker id="red-arrow" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto"><path d="M0 0L10 4L0 8Z" fill="#a53b28"/></marker>
+    <style>
+      text{fill:#292a25;font-family:Arial,Helvetica,sans-serif}
+      .headline{font-family:Georgia,'Times New Roman',serif;font-size:36px}
+      .mono{font-family:'Courier New',monospace;font-size:13px}
+      .small{font-size:13px;fill:#625f55}
+      .label{font-size:17px;font-weight:700}
+      .red{fill:#a53b28}
+      .wire{fill:none;stroke:#292a25;stroke-width:2}
+    </style>
+  </defs>
+  <path fill="#f4f0e6" d="M0 0H1280V650H0Z"/>
+  <path fill="url(#grid)" d="M36 172H1244V520H36Z"/>
+  <path d="M36 34V128" stroke="#a53b28" stroke-width="5"/>
+  <text x="55" y="48" class="mono red">01 / CONTROL PATH</text>
+  <text x="53" y="93" class="headline">DC motor speed regulation</text>
+  <text x="55" y="123" class="small">Reference speed, computed action, physical motion, measured return.</text>
+  <text x="1242" y="47" text-anchor="end" class="mono">DC MOTOR / FUNCTIONAL SCHEMATIC</text>
+  <path d="M36 148H1244" stroke="#292a25"/>
+
+  <text x="62" y="220" class="mono red">REFERENCE</text>
+  <text x="62" y="257" font-family="Georgia,serif" font-style="italic" font-size="29">r(t)</text>
+  <text x="62" y="345" class="small">Speed target</text>
+  <text x="62" y="366" class="mono">0 to 100%</text>
+  <path d="M62 310H255" class="wire" marker-end="url(#arrow)"/>
+  <circle cx="280" cy="310" r="23" fill="#f4f0e6" stroke="#292a25" stroke-width="2"/>
+  <path d="M265 307H275M270 302V312M275 324H285" class="wire"/>
+  <path d="M303 310H381" class="wire" marker-end="url(#arrow)"/>
+  <text x="332" y="291" class="mono">e</text>
+
+  <path d="M391 229H624V391H391Z" fill="#f4f0e6" stroke="#292a25" stroke-width="2"/>
+  <path d="M391 229H624V263H391Z" fill="#292a25"/>
+  <text x="407" y="251" style="fill:#f4f0e6" class="mono">SELECTED CONTROLLER</text>
+  <text x="408" y="292" class="label">PI</text>
+  <text x="493" y="292" class="label">PID</text>
+  <path d="M407 308H608" stroke="#c4bcad"/>
+  <text x="408" y="336" class="label">Mamdani fuzzy</text>
+  <text x="408" y="363" class="small">Fixed or neural-tuned scaling</text>
+  <text x="391" y="416" class="mono">e = r - y; change in e</text>
+  <path d="M624 310H753" fill="none" stroke="#a53b28" stroke-width="3" marker-end="url(#red-arrow)"/>
+  <text x="646" y="286" class="mono red">PWM DUTY</text>
+  <text x="646" y="338" class="mono">0 to 100%</text>
+
+  <path d="M767 229H932V391H767Z" fill="#f4f0e6" stroke="#292a25" stroke-width="2"/>
+  <text x="784" y="256" class="label">L298N</text>
+  <text x="784" y="277" class="small">Motor driver</text>
+  <g class="wire">
+    <path d="M798 295H901M811 295V309M888 295V309M811 327V345M888 327V345M811 363V375M888 363V375M798 375H901"/>
+    <path d="M811 309L820 324M888 309L897 324M811 345L820 360M888 345L897 360M811 335H828M871 335H888"/>
+    <circle cx="811" cy="335" r="3" fill="#292a25"/><circle cx="888" cy="335" r="3" fill="#292a25"/>
+  </g>
+  <path d="M932 310H1032" class="wire" marker-end="url(#arrow)"/>
+  <circle cx="1094" cy="310" r="50" fill="#f4f0e6" stroke="#292a25" stroke-width="2"/>
+  <path d="M1083 258H1105M1083 362H1105M1144 310H1192" class="wire"/>
+  <text x="1094" y="322" text-anchor="middle" font-size="32" font-family="Georgia,serif">M</text>
+  <text x="1050" y="229" class="label">DC motor</text>
+  <text x="1190" y="292" text-anchor="end" class="small">Shaft</text>
+
+  <path d="M1170 310V462H1018" class="wire" marker-end="url(#arrow)"/>
+  <path d="M863 438H1007V486H863Z" fill="#f4f0e6" stroke="#292a25" stroke-width="2"/>
+  <text x="935" y="467" text-anchor="middle" class="label">IR sensor</text>
+  <path d="M863 462H280V334" class="wire" marker-end="url(#arrow)"/>
+  <text x="345" y="450" class="mono">y(t) / TIMESTAMPED MEASURED SPEED</text>
+  <text x="345" y="489" class="small">Pulses per revolution + elapsed time + calibrated maximum RPM</text>
+
+  <path d="M730 171H963V209H730Z" fill="#f4f0e6" stroke="#a53b28" stroke-width="1.5"/>
+  <text x="746" y="195" class="mono red">INDEPENDENT WRITE WATCHDOG</text>
+  <path d="M847 209V224" fill="none" stroke="#a53b28" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#red-arrow)"/>
+  <text x="977" y="195" class="small">Disables GPIO output on timeout</text>
+
+  <path d="M36 534H1244" stroke="#292a25"/>
+  <text x="55" y="563" class="mono red">A / COMMAND</text>
+  <text x="55" y="586" class="small">Bounded duty, fresh feedback, explicit enable.</text>
+  <text x="489" y="563" class="mono">B / MEASUREMENT</text>
+  <text x="489" y="586" class="small">Observed rotation; no generated telemetry.</text>
+  <text x="912" y="563" class="mono">C / INTERLOCK</text>
+  <text x="912" y="586" class="small">Stop and watchdog act on the output path.</text>
+  <text x="1244" y="628" text-anchor="end" class="mono small">FUNCTIONAL DIAGRAM / NOT A WIRING PLAN</text>
+</svg>

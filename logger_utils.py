@@ -5,7 +5,6 @@ Provides centralized logging with proper formatting and rotation
 
 import logging
 from typing import Optional
-from config import get_config
 
 
 def get_logger(name: str, level: Optional[str] = None) -> logging.Logger:

@@ -4,9 +4,6 @@ Tests controllers without requiring actual hardware
 """
 
 import pytest
-import math
-from unittest.mock import Mock, patch, MagicMock
-import numpy as np
 
 # Import controllers
 import sys
@@ -14,7 +11,6 @@ sys.path.insert(0, '..')
 
 from conventional_controllers import PIController, PIDController
 from fuzzy_controller import FuzzyController
-from base_controller import ControllerValidationError
 
 
 class TestPIController:
@@ -146,9 +142,9 @@ class TestPIDController:
             output = controller.compute_output(target_speed=50, current_speed=speed)
             outputs.append(output)
 
-        # With tiny dt from time.time(), raw derivatives are large and outputs
+        # With tiny monotonic time deltas, raw derivatives are large and outputs
         # clamp to 0 or 100. The filter (alpha=0.1) smooths the internal
-        # derivative state — verify it's been applied (not zero).
+        # derivative state. Verify that the filter has been applied.
         assert controller.derivative != 0.0
         # All outputs should be valid PWM values
         for o in outputs:

@@ -3,7 +3,7 @@ Base classes for motor controllers with proper validation and error handling
 """
 
 from abc import ABC, abstractmethod
-from typing import Tuple, Optional
+from typing import Tuple
 import math
 import numpy as np
 import skfuzzy as fuzz

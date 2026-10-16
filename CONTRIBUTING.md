@@ -15,7 +15,7 @@ Use Python 3.11 or 3.12. From the repository root:
 
 ```bash
 .venv/bin/python -m pytest
-.venv/bin/python -m ruff check --select E9,F63,F7,F82 .
+.venv/bin/python -m ruff check --select E9,F .
 bash -n install.sh run.sh deploy_to_pi.sh
 .venv/bin/python -m pip check
 .venv/bin/python -m pip_audit --disable-pip --require-hashes -r requirements.txt
@@ -23,7 +23,7 @@ bash -n install.sh run.sh deploy_to_pi.sh
 git diff --check
 ```
 
-The test configuration sets Qt offscreen and limits TensorFlow worker threads. Tests under `tests/` use GPIO adapters and never actuate a physical motor. Root-level hardware diagnostic scripts are manual utilities and are not collected by default.
+The test configuration sets Qt offscreen and limits TensorFlow worker threads. Tests under `tests/` use GPIO adapters and never actuate a physical motor. Hardware operation goes through the configured application, collector or relay tuner and their shared output handling.
 
 CI runs the software suite on Python 3.11 and 3.12, audits dependency locks and runs CodeQL. Describe hardware checks separately from software checks; passing GPIO adapter tests does not establish that wiring, timing or shutdown works on a physical rig.
 

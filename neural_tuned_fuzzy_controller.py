@@ -5,15 +5,16 @@ Uses trained neural networks to predict scaling factors for a Mamdani fuzzy cont
 
 from typing import Optional, Dict
 from pathlib import Path
+from importlib import import_module
 import numpy as np
 
 from base_controller import FuzzyControllerBase
-from logger_utils import get_logger, log_exception
+from logger_utils import log_exception
 from config import get_config
 
 # Import TensorFlow/Keras conditionally
 try:
-    from tensorflow import keras
+    import_module('tensorflow.keras')
     TENSORFLOW_AVAILABLE = True
 except ImportError:
     TENSORFLOW_AVAILABLE = False
@@ -111,7 +112,7 @@ class NeuralTunedFuzzyController(FuzzyControllerBase):
             return
 
         try:
-            # Prepare input data (normalized to 0-1 range)
+            # Supply raw percentages; saved models contain input normalization.
             input_data = np.array([[target_speed, current_speed]], dtype=np.float32)
 
             # Predict scaling factors using neural networks

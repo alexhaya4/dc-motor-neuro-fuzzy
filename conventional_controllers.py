@@ -7,7 +7,6 @@ import math
 from typing import Optional
 
 from base_controller import BaseController
-from logger_utils import get_logger
 from config import get_config
 from constants import MIN_TIMESTEP_SECONDS, DEFAULT_DERIVATIVE_FILTER_ALPHA
 

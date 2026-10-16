@@ -1,7 +1,5 @@
 # Neuro-Fuzzy DC Motor Control
 
-**Four control strategies. One measured feedback loop.**
-
 [![Software checks](https://github.com/alexhaya4/dc-motor-neuro-fuzzy/actions/workflows/security-audit.yml/badge.svg)](https://github.com/alexhaya4/dc-motor-neuro-fuzzy/actions/workflows/security-audit.yml)
 [![Python 3.11 and 3.12](https://img.shields.io/badge/Python-3.11%20%7C%203.12-3776AB?logo=python&logoColor=white)](#quick-start)
 [![Code license: MIT](https://img.shields.io/badge/Code-MIT-176B50)](LICENSE)
@@ -28,24 +26,17 @@ The maintained launcher displays speed, error, PWM output and available performa
 
 ## Inside the feedback loop
 
-![Conceptual animation of a setpoint passing through the controller, PWM driver and motor, with measured speed returning through the sensor to the controller.](docs/media/control-loop.gif)
+![Functional schematic showing the speed reference, selected controller, L298N driver and DC motor, with shaft measurements returned by the IR sensor and an independent output watchdog.](docs/media/control-loop.svg)
 
-*Conceptual signal flow. This animation is an architecture illustration, not a motor recording or performance result.*
+*Figure 1. The command travels forward; the shaft measurement closes the feedback loop. Functional connections are shown, not electrical wiring.*
 
 The sensor worker converts debounced pulses into speed using elapsed time and configured pulses per revolution. Control calculations use timestamped feedback. The output path rejects stale results, while a separate write watchdog disables PWM if control writes stop.
 
 For neural tuning, the networks predict scaling factors from target and measured speed. The fuzzy rule base still computes the control action:
 
-```mermaid
-flowchart TB
-    input["Target and measured speed"] --> error["Error-scale network"]
-    input --> delta["Change-in-error-scale network"]
-    input --> output["Output-scale network"]
-    error --> fuzzy["Scale inputs and run Mamdani rules"]
-    delta --> fuzzy
-    fuzzy --> command["Scale output and bound PWM"]
-    output --> command
-```
+![Three independent scaling-model channels transform target and measured speed into bounded error, change-in-error and output factors around a fixed Mamdani rule base.](docs/media/neural-scaling.svg)
+
+*Figure 2. The three learned factors change the scale of the fuzzy inputs and output. Network symbols describe the data path, not exact layer widths.*
 
 Without a complete set of requested, checksum-verified models, the application reports **fuzzy-only mode**. Neural scaling factors are bounded, and invalid controller output is rejected.
 
@@ -101,7 +92,7 @@ See [collection, training and relay tuning](docs/USAGE.md#collect-data-and-train
 
 Stop, stale feedback, controller replacement and shutdown disable commanded output. The independent watchdog is software protection, not a hardware emergency stop or a real-time guarantee. Provide a physical power disconnect and validate the driver, supply and sensor voltage before running a motor.
 
-Metrics report missing observations as unavailable. Settling requires a continuous observed in-band tail; a single threshold crossing does not establish settling. `integration_example.py` is a mathematical simulation, separate from measured hardware operation.
+Metrics report missing observations as unavailable. Settling requires a continuous observed in-band tail; a single threshold crossing does not establish settling.
 
 ## Project guide
 
@@ -114,14 +105,14 @@ Metrics report missing observations as unavailable. Settling requires a continuo
 | [`improved_data_collection.py`](improved_data_collection.py), [`auto_tuner.py`](auto_tuner.py) | Hardware collection and candidate relay tuning |
 | [`performance_metrics.py`](performance_metrics.py), [`tests/`](tests/) | Observation-based metrics and software verification |
 
-Older launcher and controller names remain compatibility adapters. Historical implementation-summary documents are not the current operating guide. Use this README, [usage guide](docs/USAGE.md), [contribution guide](CONTRIBUTING.md) and [changelog](CHANGELOG.md) for the maintained path.
+The older launcher, collection and controller import names remain small compatibility adapters. Operating instructions live in the [usage guide](docs/USAGE.md); development checks live in [CONTRIBUTING.md](CONTRIBUTING.md). See the [changelog](CHANGELOG.md) for changes.
 
 ## Development
 
 ```bash
 .venv/bin/python -m pip install --require-hashes -r requirements-dev.txt
 .venv/bin/python -m pytest
-.venv/bin/python -m ruff check --select E9,F63,F7,F82 .
+.venv/bin/python -m ruff check --select E9,F .
 ```
 
 CI tests Python 3.11 and 3.12, audits runtime and Pi dependency locks, and runs CodeQL. Failures fail the workflow. See [CONTRIBUTING.md](CONTRIBUTING.md) for dependency updates, checks and hardware-test boundaries. Report vulnerabilities through the process in [SECURITY.md](SECURITY.md).

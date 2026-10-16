@@ -39,7 +39,7 @@ jobs:
         run: python -m pip check
       - name: Check Python errors and shell syntax
         run: |
-          python -m ruff check --select E9,F63,F7,F82 .
+          python -m ruff check --select E9,F .
           bash -n install.sh run.sh deploy_to_pi.sh
       - name: Run software tests
         run: python -m pytest tests --cov=base_controller --cov=conventional_controllers --cov=control_runtime --cov=motor_hardware --cov=nn_models --cov=performance_metrics --cov=improved_data_collection --cov=auto_tuner --cov-report=xml --cov-report=term-missing

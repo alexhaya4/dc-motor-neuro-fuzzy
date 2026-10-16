@@ -1,30 +1,22 @@
-"""
-Modern DC Motor Control GUI - Version 2.0
-Complete implementation with all improvements integrated
-"""
+"""Motor-control interface with measured feedback and explicit offline inspection."""
 
 import sys
 import time
 import math
-import numpy as np
 from collections import deque
-from queue import Queue, Empty
-from threading import Lock
-from typing import Optional, Dict, Any
 
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
-                             QHBoxLayout, QLabel, QGroupBox, QTabWidget,
+                             QHBoxLayout, QLabel, QTabWidget,
                              QGridLayout, QTextEdit, QMessageBox, QComboBox,
-                             QRadioButton, QButtonGroup, QCheckBox, QFileDialog,
-                             QSpinBox, QDoubleSpinBox, QScrollArea, QFrame)
-from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QThread
+                             QRadioButton, QButtonGroup, QSpinBox, QDoubleSpinBox, QScrollArea, QFrame)
+from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QFont
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
 # Import our improved modules
-from config import get_config, is_raspberry_pi
+from config import get_config
 from logger_utils import get_logger
 from modern_theme import ModernTheme
 from animated_widgets import (AnimatedCard, CircularGauge, StatusIndicator,
@@ -33,30 +25,13 @@ from conventional_controllers import PIController, PIDController
 from fuzzy_controller import FuzzyController
 from neural_tuned_fuzzy_controller import NeuralTunedFuzzyController
 from constants import (
-    SETTLING_TIME_TOLERANCE_PERCENT,
-    STEADY_STATE_SAMPLES,
-    STEADY_STATE_START_TIME_SEC,
-    SPEED_SENSOR_SMOOTHING_SAMPLES,
-    SPEED_MEASUREMENT_DURATION_SEC,
-    SENSOR_POLL_INTERVAL_SEC,
-    CONTROL_LOOP_INTERVAL_SEC,
     PLOT_MAX_POINTS,
     MAX_LOG_FILE_READ_BYTES,
-    OVERSHOOT_PENALTY_MULTIPLIER,
-    OVERSHOOT_MAX_PENALTY,
-    SETTLING_TIME_PENALTY_MULTIPLIER,
-    SETTLING_TIME_MAX_PENALTY,
-    STEADY_STATE_ERROR_PENALTY_MULTIPLIER,
-    STEADY_STATE_ERROR_MAX_PENALTY,
-    MAX_PERFORMANCE_SCORE,
-    WATCHDOG_TIMEOUT_SEC,
-    WATCHDOG_CHECK_INTERVAL_SEC,
-    SPEED_SENSOR_SLEEP_MICROSEC
+    WATCHDOG_TIMEOUT_SEC
 )
 
 from motor_hardware import MotorHardware
 from control_runtime import ThreadSafeSpeedSensor, ThreadSafeController
-from performance_metrics import PerformanceMetrics
 
 logger = get_logger(__name__)
 

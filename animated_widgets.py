@@ -5,11 +5,9 @@ Beautiful, fluid animations for modern GUI
 
 from PyQt5.QtWidgets import (QWidget, QLabel, QFrame, QVBoxLayout, QHBoxLayout,
                               QProgressBar, QPushButton, QGraphicsOpacityEffect)
-from PyQt5.QtCore import (QPropertyAnimation, QEasingCurve, QParallelAnimationGroup,
-                          QSequentialAnimationGroup, Qt, pyqtProperty, QTimer, QRect)
+from PyQt5.QtCore import (QPropertyAnimation, QEasingCurve, QSequentialAnimationGroup, Qt, pyqtProperty, QTimer, QRect)
 from PyQt5.QtGui import QPainter, QColor, QPen, QFont, QLinearGradient
 from typing import Optional
-import math
 
 
 class AnimatedCard(QFrame):

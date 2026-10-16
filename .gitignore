@@ -4,6 +4,7 @@ venv/
 .env
 .pytest_cache/
 .ruff_cache/
+.vscode/
 .coverage
 coverage.xml
 htmlcov/
@@ -34,8 +35,7 @@ logs/
 *.keras
 *.h5
 
-# Except icon
-!icon.png
+# Documentation figures
 !docs/media/*.png
 
 # Data files

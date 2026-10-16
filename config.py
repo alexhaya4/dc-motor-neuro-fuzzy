@@ -7,7 +7,7 @@ import os
 import logging
 import math
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 from pathlib import Path
 from dotenv import load_dotenv
 from constants import VALID_GPIO_PINS

@@ -1,4 +1,3 @@
-import pytest
 from performance_metrics import PerformanceMetrics
 
 

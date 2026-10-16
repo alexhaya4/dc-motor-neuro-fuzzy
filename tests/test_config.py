@@ -3,8 +3,6 @@ Test cases for configuration module
 """
 
 import pytest
-import os
-from pathlib import Path
 from config import (
     GPIOConfig,
     PathConfig,
@@ -119,12 +117,7 @@ class TestPathConfig:
         base = tmp_path / "project"
         base.mkdir()
 
-        # Temporarily change working directory
-        original_file = Path(__file__)
-        config_file = base / "config.py"
-        config_file.touch()
-
-        config = PathConfig(
+        PathConfig(
             base_dir=base,
             models_dir=base / "models",
             logs_dir=base / "logs",

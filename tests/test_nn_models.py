@@ -4,8 +4,6 @@ Test cases for neural network models module
 
 import pytest
 import json
-import os
-from pathlib import Path
 from nn_models import (
     compute_file_checksum,
     verify_file_checksum,

@@ -4,7 +4,6 @@ Professional UI styling for PyQt5
 """
 
 from PyQt5.QtGui import QColor, QPalette, QFont
-from typing import Dict, Any
 
 
 class ModernTheme:
