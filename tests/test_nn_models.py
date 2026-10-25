@@ -243,3 +243,24 @@ class TestNeuralNetworkTrainer:
         trainer = NeuralNetworkTrainer()
         data = trainer.load_training_data(str(data_file))
         assert data is None
+
+def test_training_data_size_is_bounded_by_bytes_read(tmp_path, monkeypatch):
+    sample = {
+        'target_speed': 50,
+        'actual_speed': 45,
+        'error_scale': 1,
+        'delta_error_scale': 1,
+        'output_scale': 1,
+    }
+    filename = tmp_path / 'training_data.json'
+    filename.write_text(json.dumps([sample]) + ' ' * 512, encoding='utf-8')
+    monkeypatch.setattr('nn_models.MAX_JSON_FILE_SIZE_BYTES', 256)
+
+    # Valid JSON padding must still be rejected when it exceeds the byte limit.
+    assert NeuralNetworkTrainer().load_training_data(filename) is None
+
+
+def test_training_data_invalid_utf8_is_rejected(tmp_path):
+    filename = tmp_path / 'training_data.json'
+    filename.write_bytes(b'\xff')
+    assert NeuralNetworkTrainer().load_training_data(filename) is None

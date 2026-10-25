@@ -285,22 +285,19 @@ class NeuralNetworkTrainer:
         Returns:
             Validated training data or None if validation fails
         """
-        if not os.path.exists(filename):
-            print(f"Training data file {filename} not found.")
-            return None
-
-        # Check file size to prevent memory exhaustion
-        file_size = os.path.getsize(filename)
-        if file_size > MAX_JSON_FILE_SIZE_BYTES:
-            print(f"Training data file {filename} is too large "
-                  f"({file_size} bytes > {MAX_JSON_FILE_SIZE_BYTES} bytes).")
-            return None
-
         try:
             def invalid_constant(value):
                 raise ValueError(f'Non-finite JSON number: {value}')
-            with open(filename, 'r') as f:
-                data = json.load(f, parse_constant=invalid_constant)
+
+            # Bound the bytes actually read, not a size observed before opening.
+            # A file may change between a separate stat and the JSON parser.
+            with open(filename, 'rb') as stream:
+                contents = stream.read(MAX_JSON_FILE_SIZE_BYTES + 1)
+            if len(contents) > MAX_JSON_FILE_SIZE_BYTES:
+                print(f"Training data file {filename} is too large "
+                      f"({len(contents)} bytes read; limit {MAX_JSON_FILE_SIZE_BYTES} bytes).")
+                return None
+            data = json.loads(contents.decode('utf-8'), parse_constant=invalid_constant)
             if isinstance(data, dict):
                 data = data.get('samples')
 
@@ -310,7 +307,10 @@ class NeuralNetworkTrainer:
             print(f"Loaded and validated {len(data)} training samples.")
             return data
 
-        except (json.JSONDecodeError, ValueError) as e:
+        except FileNotFoundError:
+            print(f"Training data file {filename} not found.")
+            return None
+        except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as e:
             print(f"Invalid JSON in {filename}: {e}")
             return None
         except JsonValidationError as e:

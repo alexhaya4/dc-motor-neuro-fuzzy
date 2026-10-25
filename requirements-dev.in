@@ -3,3 +3,5 @@ pytest==9.1.1
 pytest-cov==7.1.0
 ruff==0.17.1
 pip-audit==2.10.1
+# Locking primitives used by the development/audit toolchain.
+filelock==4.2.4
