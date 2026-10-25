@@ -9,3 +9,7 @@ scikit-fuzzy==0.5.0
 networkx==3.6.1
 python-dotenv==1.2.4
 jsonschema==4.26.0
+# Transitive libraries pinned explicitly to their verified security fixes.
+pillow==13.0.0
+certifi==2026.10.23
+setuptools==84.1.0

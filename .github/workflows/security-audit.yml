@@ -48,6 +48,7 @@ jobs:
         run: |
           python -m pip_audit --disable-pip --require-hashes -r requirements.txt --progress-spinner off
           python -m pip_audit --disable-pip --require-hashes -r requirements-pi.txt --progress-spinner off
+          python -m pip_audit --disable-pip --require-hashes -r requirements-dev.txt --progress-spinner off
       - name: Upload software coverage
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Upgrade vulnerable locked Pillow, certifi, filelock and setuptools to patched releases across runtime, development and Raspberry Pi environments.
+- Include development dependencies in the recurring security audit and fix a CodeQL test-import finding.
 - Fail closed on nonnumeric or unrepresentable PWM inputs, immediately disabling physical output and requiring explicit rearming.
 - Enforce the training-data byte limit during the file read, preventing a stale pre-open size check from bypassing the bound.
 - Require hashes in the installer and stop performing unpinned `pip` upgrades during installation.
