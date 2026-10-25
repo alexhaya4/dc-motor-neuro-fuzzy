@@ -4,6 +4,9 @@
 
 ### Fixed
 
+- Fail closed on nonnumeric or unrepresentable PWM inputs, immediately disabling physical output and requiring explicit rearming.
+- Enforce the training-data byte limit during the file read, preventing a stale pre-open size check from bypassing the bound.
+- Require hashes in the installer and stop performing unpinned `pip` upgrades during installation.
 - Restore the original CodeQL analysis identity and its security-and-quality queries so findings from the earlier configuration are evaluated against current source.
 - Combine the positive-output and PWM-range test assertions to remove a redundant comparison without reducing coverage.
 - Retain downloadable CodeQL reports and fail the scan job on reported findings, including quality notes.

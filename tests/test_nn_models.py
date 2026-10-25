@@ -243,3 +243,28 @@ class TestNeuralNetworkTrainer:
         trainer = NeuralNetworkTrainer()
         data = trainer.load_training_data(str(data_file))
         assert data is None
+
+def test_training_data_size_is_bounded_by_bytes_read_despite_stale_metadata(tmp_path, monkeypatch):
+    import nn_models
+
+    sample = {
+        'target_speed': 50,
+        'actual_speed': 45,
+        'error_scale': 1,
+        'delta_error_scale': 1,
+        'output_scale': 1,
+    }
+    filename = tmp_path / 'training_data.json'
+    filename.write_text(json.dumps([sample]) + ' ' * 512, encoding='utf-8')
+    monkeypatch.setattr(nn_models, 'MAX_JSON_FILE_SIZE_BYTES', 256)
+    monkeypatch.setattr(nn_models.os.path, 'getsize', lambda _: 1)
+
+    # The payload is valid JSON but exceeds the allowed read length.
+    # A pre-open stat alone would incorrectly accept it.
+    assert NeuralNetworkTrainer().load_training_data(filename) is None
+
+
+def test_training_data_invalid_utf8_is_rejected(tmp_path):
+    filename = tmp_path / 'training_data.json'
+    filename.write_bytes(b'\xff')
+    assert NeuralNetworkTrainer().load_training_data(filename) is None

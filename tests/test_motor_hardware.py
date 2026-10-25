@@ -123,3 +123,16 @@ def test_measurement_uses_elapsed_time_and_pulses_per_revolution(gpio, monkeypat
         monkeypatch.setattr(motor_hardware.time, 'monotonic', lambda: now[0])
         monkeypatch.setattr(motor_hardware.time, 'sleep', lambda _: now.__setitem__(0, now[0] + 0.1))
         assert hardware.read_speed(0.5) == pytest.approx(20)
+
+@pytest.mark.parametrize('value', [None, '25', True, 10 ** 400])
+def test_invalid_duty_type_or_unbounded_integer_forces_zero(gpio, value):
+    with motor_hardware.MotorHardware() as hardware:
+        hardware.arm()
+        hardware.ChangeDutyCycle(25)
+        with pytest.raises(ValueError, match='PWM duty'):
+            hardware.ChangeDutyCycle(value)
+        assert gpio.duty == 0
+        assert gpio.levels[get_config().gpio.motor_in1] == gpio.LOW
+        assert gpio.levels[get_config().gpio.motor_in2] == gpio.LOW
+        with pytest.raises(RuntimeError, match='armed'):
+            hardware.ChangeDutyCycle(25)

@@ -16,6 +16,5 @@ else
     echo 'Usage: ./install.sh [--hardware]' >&2
     exit 2
 fi
-.venv/bin/python -m pip install --upgrade pip
-.venv/bin/python -m pip install -r "$dependency_file"
+.venv/bin/python -m pip install --require-hashes -r "$dependency_file"
 printf '%s\n' 'Installation complete. Use ./run.sh on the Pi or ./run.sh --offline to inspect without hardware.'

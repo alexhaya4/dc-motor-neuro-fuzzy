@@ -2,6 +2,7 @@
 
 import importlib
 import math
+import numbers
 import threading
 import time
 from contextlib import contextmanager
@@ -69,7 +70,8 @@ class MotorHardware:
         with self._lock:
             if self._closed.is_set():
                 raise RuntimeError('Motor hardware is closed')
-            if not math.isfinite(duty) or not 0 <= duty <= 100:
+            if (isinstance(duty, bool) or not isinstance(duty, numbers.Real)
+                    or not 0 <= duty <= 100 or not math.isfinite(duty)):
                 self._armed = False
                 self._off()
                 raise ValueError('PWM duty must be finite and between 0 and 100')
